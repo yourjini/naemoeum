@@ -207,6 +207,9 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .topic-list li{display:flex;align-items:center;gap:2px}
 .topic-list li .fbtn{flex:1 1 auto;min-width:0}
 .t-slot{flex:none;width:26px;height:24px}
+.topic-filters > summary{display:list-item}
+.t-add{float:right;border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;padding:2px 6px;border-radius:5px;cursor:pointer}
+.t-add:hover{background:var(--soft);color:var(--ink)}
 .t-tog{flex:none;width:18px;height:24px;border:0;background:transparent;color:var(--muted);font-size:11px;padding:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:4px}
 button.t-tog:hover{background:var(--soft);color:var(--ink)}
 button.t-tog svg{transition:transform .15s}
@@ -777,7 +780,7 @@ const RULE_V = 3;
 const STRONG = new Set(["스트레칭", "마사지"]);
 // 사용자가 지우거나 이름을 바꾼 기본 주제: 새로 저장하는 항목에도 그대로 따른다 (이 브라우저에 기억)
 const TOPIC_PREF_KEY = "naemoeum.topicPrefs.v1";
-const topicPrefs = (() => { try { const o = JSON.parse(localStorage.getItem(TOPIC_PREF_KEY) || "{}"); return { drop: o.drop || [], rename: o.rename || {}, parent: o.parent || {} }; } catch { return { drop: [], rename: {}, parent: {} }; } })();
+const topicPrefs = (() => { try { const o = JSON.parse(localStorage.getItem(TOPIC_PREF_KEY) || "{}"); return { drop: o.drop || [], rename: o.rename || {}, parent: o.parent || {}, extra: o.extra || [] }; } catch { return { drop: [], rename: {}, parent: {}, extra: [] }; } })();
 // 로그인했으면 계정 정보에도 같이 저장해 다른 기기에서도 같게
 const saveTopicPrefs = () => { try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {} if (store === "sb" && sb) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {}); };
 function mergeTopicPrefs(cloud){
@@ -786,13 +789,14 @@ function mergeTopicPrefs(cloud){
   topicPrefs.drop = [...new Set((cloud.drop || []).concat(topicPrefs.drop))];
   topicPrefs.rename = { ...topicPrefs.rename, ...(cloud.rename || {}) };
   topicPrefs.parent = { ...topicPrefs.parent, ...(cloud.parent || {}) };
+  topicPrefs.extra = [...new Set((cloud.extra || []).concat(topicPrefs.extra))];
   try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {}
   return JSON.stringify(cloud) !== JSON.stringify(topicPrefs) || before !== JSON.stringify(topicPrefs);
 }
 const RULE_NAMES = new Set(TOPIC_RULES.map(r => r[0]));
 function ruleName(t){ const seen = new Set(); while (topicPrefs.rename[t] && !seen.has(t)){ seen.add(t); t = topicPrefs.rename[t]; } return topicPrefs.drop.includes(t) ? "" : t; }
-function noteTopicRename(from, to){ const P = topicPrefs.parent; for (const k of Object.keys(P)) if (P[k] === from) P[k] = to; if (P[from]){ P[to] = P[from]; delete P[from]; } for (const k of Object.keys(topicPrefs.rename)) if (topicPrefs.rename[k] === from) topicPrefs.rename[k] = to; if (RULE_NAMES.has(from)) topicPrefs.rename[from] = to; topicPrefs.drop = topicPrefs.drop.filter(x => x !== to); saveTopicPrefs(); }
-function noteTopicDrop(t){ if (!topicPrefs.drop.includes(t) && (RULE_NAMES.has(t) || Object.values(topicPrefs.rename).includes(t))){ topicPrefs.drop.push(t); saveTopicPrefs(); } }
+function noteTopicRename(from, to){ topicPrefs.extra = topicPrefs.extra.map(x => x === from ? to : x); const P = topicPrefs.parent; for (const k of Object.keys(P)) if (P[k] === from) P[k] = to; if (P[from]){ P[to] = P[from]; delete P[from]; } for (const k of Object.keys(topicPrefs.rename)) if (topicPrefs.rename[k] === from) topicPrefs.rename[k] = to; if (RULE_NAMES.has(from)) topicPrefs.rename[from] = to; topicPrefs.drop = topicPrefs.drop.filter(x => x !== to); saveTopicPrefs(); }
+function noteTopicDrop(t){ if (topicPrefs.extra.includes(t)){ topicPrefs.extra = topicPrefs.extra.filter(x => x !== t); saveTopicPrefs(); } if (!topicPrefs.drop.includes(t) && (RULE_NAMES.has(t) || Object.values(topicPrefs.rename).includes(t))){ topicPrefs.drop.push(t); saveTopicPrefs(); } }
 function noteTopicUse(t){ if (t && topicPrefs.drop.includes(t)){ topicPrefs.drop = topicPrefs.drop.filter(x => x !== t); saveTopicPrefs(); } }
 function ruleHay(x){ return [x.title, x.title, x.desc, (x.tags || []).join(" "), (x.text || "").slice(0, 2000)].filter(Boolean).join("\n").toLowerCase().replace(/(네이버|다음|naver|daum)\s*카페/g, " "); }
 const hit = (w, hay) => w instanceof RegExp ? w.test(hay) : hay.includes(w);
@@ -1252,21 +1256,34 @@ const NO_TOPIC = "주제 없음", ETC = "기타";
 const openTopics = new Set((() => { try { return JSON.parse(localStorage.getItem("naemoeum.openTopics.v1") || "[]"); } catch { return []; } })());
 const saveOpenTopics = () => { try { localStorage.setItem("naemoeum.openTopics.v1", JSON.stringify([...openTopics])); } catch {} };
 const chev = b => { b.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>'; return b; };
+let topicAdding = false;
 let smallTopics = new Set(), moreOpen = false, topicOpen = true, topicEdit = null, topicDelArmed = false, dragTopic = null;
 const PEN_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 // 주제·세부 주제 옮기기: parent가 있으면 그 아래 세부로, 없으면 맨 위 주제로
 async function moveTopic(src, parent){
   parent = parent || ""; const name = src.s || src.t;
   if (parent === name || (src.s ? parent === src.t : !parent)) return;
-  const ids = items.filter(i => i.topic === src.t && (!src.s || i.sub === src.s)).map(i => i.id);
-  try { await updateMany(ids, parent ? { topic: parent, sub: name, topicBy: "user" } : { topic: name, sub: "", topicBy: "user" }); }
-  catch { toast("옮기지 못했습니다."); return; }
+  const sel = items.filter(i => i.topic === src.t && (!src.s || i.sub === src.s));
+  // 맨 위 주제를 다른 주제 아래로 넣을 때, 그 주제 아래 넣어 둔 세부 주제들은 새 상위 주제의 세부로 나란히 옮긴다
+  // (사용자가 직접 넣은 세부 주제만. 자동으로 붙은 세부(예: 여행 › 제주)는 옮긴 주제 이름으로 묶인다)
+  const flat = !src.s && parent ? sel.filter(i => i.sub && i.sub !== parent && topicPrefs.parent[i.sub] === name) : [];
+  const subsMoved = [...new Set(flat.map(i => i.sub))];
+  try {
+    await updateMany(sel.filter(i => !flat.includes(i)).map(i => i.id), parent ? { topic: parent, sub: name, topicBy: "user" } : { topic: name, sub: "", topicBy: "user" });
+    for (const sb of subsMoved) await updateMany(flat.filter(i => i.sub === sb).map(i => i.id), { topic: parent, sub: sb, topicBy: "user" });
+  } catch { toast("옮기지 못했습니다."); return; }
   const P = topicPrefs.parent;
+  subsMoved.forEach(sb => { P[sb] = parent; });
   if (parent){ P[name] = parent; for (const k of Object.keys(P)) if (P[k] === name) P[k] = parent; } else delete P[name];
   saveTopicPrefs();
   if (parent){ openTopics.add(parent); saveOpenTopics(); }
   F.topic = parent || name; F.sub = null; topicOpen = true; render();
   toast(parent ? `'${name}'을(를) '${parent}' 아래로 옮겼습니다.` : `'${name}'을(를) 밖으로 뺐습니다.`);
+}
+function addTopic(name){
+  name = String(name || "").trim().slice(0, 20); if (!name) return "";
+  if (!topicPrefs.extra.includes(name)) topicPrefs.extra.push(name);
+  topicPrefs.drop = topicPrefs.drop.filter(x => x !== name); saveTopicPrefs(); return name;
 }
 // 왼쪽 주제 편집: 이름 바꾸기(같은 이름이 있으면 합쳐짐)·위치(상위 주제)·지우기
 let topTopics = [];
@@ -1274,8 +1291,10 @@ function topicEditRow(t, sb){
   const name = sb || t;
   const ids = items.filter(i => i.topic === t && (!sb || i.sub === sb)).map(i => i.id);
   const inp = el("input", { type: "text", value: name, "aria-label": "이름", maxlength: "20" });
-  const loc = el("select", { "aria-label": "위치" }, el("option", { value: "", text: "맨 위 주제" }), topTopics.filter(x => x !== name).map(x => el("option", { value: x, text: x + " 아래" })));
+  const loc = el("select", { "aria-label": "위치" }, el("option", { value: "", text: "맨 위 주제" }), topTopics.filter(x => x !== name).map(x => el("option", { value: x, text: x + " 아래" })), el("option", { value: "\u0001new", text: "새 상위 주제로 묶기…" }));
   loc.value = sb ? t : "";
+  const newP = el("input", { type: "text", placeholder: "새 상위 주제 이름", "aria-label": "새 상위 주제 이름", maxlength: "20", hidden: true });
+  loc.addEventListener("change", () => { newP.hidden = loc.value !== "\u0001new"; if (!newP.hidden) newP.focus(); });
   const done = () => { topicEdit = null; topicDelArmed = false; render(); };
   const gone = sb ? `${ids.length}개를 세부 없음으로` : `${ids.length}개를 주제 없음으로`;
   const del = el("button", { type: "button", class: "btn ghost danger", text: topicDelArmed ? gone : "지우기" });
@@ -1287,9 +1306,11 @@ function topicEditRow(t, sb){
       toast("지웠습니다.");
     } catch { toast("지우지 못했습니다."); } done();
   });
-  const form = el("form", { class: "t-editrow" }, inp, loc, el("div", { class: "row" }, el("button", { type: "submit", class: "btn", text: "저장" }), del, el("button", { type: "button", class: "btn ghost", text: "취소", onclick: done })));
+  const form = el("form", { class: "t-editrow" }, inp, loc, newP, el("div", { class: "row" }, el("button", { type: "submit", class: "btn", text: "저장" }), del, el("button", { type: "button", class: "btn ghost", text: "취소", onclick: done })));
   form.addEventListener("submit", async e => {
-    e.preventDefault(); const v = inp.value.trim().slice(0, 20), where = loc.value;
+    e.preventDefault(); const v = inp.value.trim().slice(0, 20);
+    let where = loc.value;
+    if (where === "\u0001new"){ where = addTopic(newP.value); if (!where || where === v){ newP.focus(); return; } }
     if (!v) return done();
     topicEdit = null; topicDelArmed = false;
     if (v !== name){
@@ -1355,6 +1376,7 @@ function renderFilters(){
   smallTopics = new Set([...all.entries()].filter(([t, n]) => n < 3 && t !== NO_TOPIC && !mine.has(t)).map(([t]) => t));
   if (smallTopics.size < 2) smallTopics = new Set();
   const m = new Map(); items.filter(i => matches(i, "topic")).forEach(i => { let t = i.topic || NO_TOPIC; if (smallTopics.has(t)) t = ETC; m.set(t, (m.get(t) || 0) + 1); });
+  topicPrefs.extra.forEach(t => { if (!m.has(t) && !smallTopics.has(t) && !topicPrefs.drop.includes(t)) m.set(t, 0); });
   const order = [...m.entries()].sort((a, b) => (a[0] === NO_TOPIC) - (b[0] === NO_TOPIC) || (a[0] === ETC) - (b[0] === ETC) || topicCmp(a[0], b[0]));
   const ul = el("ul", { class: "topic-list" });
   topTopics = order.map(([t]) => t).filter(t => t !== ETC && t !== NO_TOPIC);
@@ -1396,7 +1418,18 @@ function renderFilters(){
   });
   // 주제와 다른 기준은 접고 펼 수 있고, 한쪽을 펼치면 다른 쪽은 접힌다
   const tdet = el("details", { class: "more-filters topic-filters" }); tdet.open = topicOpen && !moreOpen;
-  if (order.length){ const sum = el("summary", { text: "주제" }); dropTo(sum, ""); tdet.append(sum, el("div", { class: "fgroup" }, ul)); box.append(tdet); }
+  {
+    const sum = el("summary", {}, "주제"); dropTo(sum, "");
+    const add = el("button", { type: "button", class: "t-add", "aria-label": "주제 만들기", title: "주제 만들기", text: "＋", onclick: e => { e.preventDefault(); e.stopPropagation(); topicAdding = true; topicOpen = true; render(); } });
+    sum.append(add);
+    if (topicAdding){
+      const inp = el("input", { type: "text", placeholder: "새 주제 이름", "aria-label": "새 주제 이름", maxlength: "20" });
+      const f = el("form", { class: "t-editrow" }, inp, el("div", { class: "row" }, el("button", { type: "submit", class: "btn", text: "만들기" }), el("button", { type: "button", class: "btn ghost", text: "취소", onclick: () => { topicAdding = false; render(); } })));
+      f.addEventListener("submit", e => { e.preventDefault(); const n = addTopic(inp.value); topicAdding = false; render(); if (n) toast(`'${n}' 주제를 만들었습니다.`); });
+      ul.prepend(el("li", { class: "editing" }, f)); setTimeout(() => inp.focus(), 0);
+    }
+    tdet.append(sum, el("div", { class: "fgroup" }, ul)); box.append(tdet);
+  }
   const det = el("details", { class: "more-filters" }); det.open = moreOpen || (!topicOpen && ["type", "platform", "savedFrom", "tag"].some(k => F[k]));
   tdet.addEventListener("toggle", () => { topicOpen = tdet.open; if (tdet.open && det.open){ moreOpen = false; det.open = false; } });
   det.addEventListener("toggle", () => { moreOpen = det.open; if (det.open && tdet.open){ topicOpen = false; tdet.open = false; } });
@@ -1452,7 +1485,7 @@ const isKo = t => /^[\uac00-\ud7a3\u3131-\u318e]/.test(t);
 const topicCmp = (a, b) => (!isKo(a)) - (!isKo(b)) || a.localeCompare(b, "ko", { sensitivity: "base" });
 function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
-  return [...new Set([...m.keys()].concat(TOPIC_RULES.map(r => ruleName(r[0]))))].filter(Boolean).sort(topicCmp);
+  return [...new Set([...m.keys()].concat(topicPrefs.extra, TOPIC_RULES.map(r => ruleName(r[0]))))].filter(Boolean).sort(topicCmp);
 }
 async function setTopic(n, t){
   closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
