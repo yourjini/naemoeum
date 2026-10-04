@@ -1498,7 +1498,8 @@ const isKo = t => /^[\uac00-\ud7a3\u3131-\u318e]/.test(t);
 const topicCmp = (a, b) => (!isKo(a)) - (!isKo(b)) || a.localeCompare(b, "ko", { sensitivity: "base" });
 function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
-  return [...new Set([...m.keys()].concat(topicPrefs.extra, TOPIC_RULES.map(r => ruleName(r[0]))))].filter(t => t && (m.has(t) || !topicPrefs.drop.includes(t))).sort(topicCmp);
+  // 쓰는 주제와 직접 만든 빈 주제만 (안 쓰는 기본 주제·바꾸기 전 이름은 뺀다)
+  return [...new Set([...m.keys()].concat(topicPrefs.extra))].filter(t => t && (m.has(t) || !topicPrefs.drop.includes(t))).sort(topicCmp);
 }
 async function setTopic(n, t, sb){
   closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
