@@ -177,6 +177,7 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:14px;padding:9px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100vw - 32px);z-index:5}
 .toast.show{opacity:1}
+.sent-note{border:1px solid var(--warn);color:var(--ink);background:var(--sheet);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.6}
 .set-btn{margin-left:auto;align-self:center}
 #settings h2{margin:0}
 .bm-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
@@ -197,7 +198,7 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
   <section class="panel stack" id="settings" aria-labelledby="h-set" hidden>
     <div class="row between"><h2 id="h-set">내모음으로 보내기 버튼</h2>
       <button class="btn ghost" id="close-settings" type="button">닫기</button></div>
-    <p class="note">네이버 Keep, 블로그 같은 화면에서 이 버튼을 누르면 그 화면의 글을 내모음으로 가져옵니다. 직접 누를 때만 동작하고, 계정 정보는 쓰지 않습니다.</p>
+    <p class="note">Keep 목록에서 누르면 보이는 링크를 하나씩, 다른 사이트에서 누르면 그 페이지를 링크로 저장해요. 글을 긁어 선택하고 누르면 그 글만 저장해요. 직접 누를 때만 동작하고, 계정 정보는 쓰지 않아요.</p>
     <div class="bm-row">
       <a class="bm" id="bm-link" href="#" draggable="true">＋ 내모음으로 보내기</a>
       <button class="btn" id="bm-copy" type="button">버튼 주소 복사</button>
@@ -223,6 +224,7 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
 
     <!-- 붙여넣기: ① 붙여넣기 → ② 확인 → ③ 담기 -->
     <div id="pane-paste" role="tabpanel" aria-labelledby="tab-paste" class="flow">
+      <div class="sent-note" id="sent-note" role="alert" hidden><span id="sent-msg"></span> <button class="btn" id="sent-diag" type="button" hidden>진단 정보 복사</button> <button class="btn ghost" id="sent-close" type="button">닫기</button></div>
       <div class="step">
         <div class="step-head"><span class="num">1</span><label for="raw">링크나 글을 붙여넣으세요</label>
           <button class="btn ghost" id="raw-clear" type="button" hidden>비우기</button></div>
@@ -1184,7 +1186,31 @@ $("#fill-preview").addEventListener("click", () => fillPreviews());
 
 // 내모음으로 보내기: 북마크바 버튼이 지금 화면의 글을 #nm= 뒤에 담아 웹 버전을 연다
 const NM_HOME = "https://naemoeum.vercel.app/";
-const BOOKMARKLET = "javascript:(()=>{try{const s=String(getSelection()||'').trim(),m={},X=/^(nid|help|mail|calendar|contact|mybox|memo|talk|note|keep|www|m|blog\\.editor|cafe\\.editor|section\\.blog|ssl|static|common)\\.naver\\.com$/;if(!s)document.querySelectorAll('a[href^=http]').forEach(a=>{let h;try{h=new URL(a.href)}catch(e){return}if(h.host===location.host||X.test(h.hostname)||h.pathname.length<2)return;const t=(a.innerText||a.title||'').trim().split('\\n')[0].slice(0,160);if(!m[a.href]||t.length>m[a.href].length)m[a.href]=t});const l=Object.entries(m).slice(0,2000).map(([u,t])=>[t,u]),t=(s||(document.body&&document.body.innerText)||'').slice(0,l.length>1?2000:30000),d={v:2,u:location.href,ti:document.title,t:t,sel:!!s,l:l},w=window.open('" + NM_HOME + "#nm='+encodeURIComponent(JSON.stringify(d)),'_blank');if(!w)alert('팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.')}catch(e){alert('내모음으로 보내지 못했어요: '+e.message)}})()";
+// 북마클릿 본문. 한 줄로 이어 붙이므로 모든 문장 끝에 ;를 쓰고 // 주석과 % 문자는 쓰지 않는다.
+function nmSend(home){
+  try {
+    var s = String(getSelection() || "").trim();
+    var d = { v: 3, u: location.href, ti: document.title, sel: !!s, t: s.slice(0, 30000), l: [], dg: null };
+    if (!s && /(^|\.)keep\.naver\.com$/.test(location.hostname)){
+      var m = {}, X = /^(nid|help|mail|calendar|contact|mybox|memo|talk|note|keep|www|m|ssl|static|common|section)\.naver\.com$/;
+      var add = function(href, t){ var h; try { h = new URL(href, location.href); } catch (e){ return; }
+        if (!/^https?:$/.test(h.protocol) || h.host === location.host || X.test(h.hostname) || h.pathname.length < 2) return;
+        t = String(t || "").trim().split("\n")[0].slice(0, 160); if (!(h.href in m) || t.length > m[h.href].length) m[h.href] = t; };
+      document.querySelectorAll("a[href]").forEach(function(a){ add(a.getAttribute("href"), a.innerText || a.title); });
+      document.querySelectorAll("[data-url],[data-href],[data-link],[data-original-url]").forEach(function(e){ add(e.getAttribute("data-url") || e.getAttribute("data-href") || e.getAttribute("data-link") || e.getAttribute("data-original-url"), e.innerText); });
+      d.l = Object.keys(m).slice(0, 3000).map(function(u){ return [m[u], u]; });
+      if (d.l.length < 2){
+        var hs = {}; document.querySelectorAll("a[href]").forEach(function(a){ var k; try { var x = new URL(a.getAttribute("href"), location.href); k = x.host + "/" + (x.pathname.split("/")[1] || ""); } catch (e){ k = "?"; } hs[k] = (hs[k] || 0) + 1; });
+        var dom = null; document.querySelectorAll("span,div,p,em,strong,dd,small").forEach(function(e){ if (!dom && !e.children.length && /^[a-z0-9.-]+\.(com|net|kr|io|co|org)$/i.test((e.textContent || "").trim())) dom = e; });
+        var path = []; for (var e = dom, i = 0; e && i < 7; e = e.parentElement, i++){ path.push(e.tagName.toLowerCase() + "." + String(e.className || "").slice(0, 60) + " [" + [].map.call(e.attributes, function(a){ return /^(data-|href|role|onclick)/.test(a.name) ? a.name + "=" + String(a.value).slice(0, 50) : a.name; }).join(" ") + "]"); }
+        d.dg = { anchors: document.querySelectorAll("a[href]").length, hosts: hs, path: path };
+      }
+    }
+    var w = window.open(home + "#nm=" + encodeURIComponent(JSON.stringify(d)), "_blank");
+    if (!w) alert("팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.");
+  } catch (e){ alert("내모음으로 보내지 못했어요: " + e.message); }
+}
+const BOOKMARKLET = "javascript:(" + nmSend.toString().replace(/\n\s*/g, " ") + ")('" + NM_HOME + "')";
 $("#bm-link").setAttribute("href", BOOKMARKLET);
 $("#bm-link").addEventListener("click", e => { e.preventDefault(); toast("누르지 말고 북마크바로 끌어다 놓으세요."); });
 $("#bm-copy").addEventListener("click", async () => {
@@ -1196,27 +1222,37 @@ const openSettings = on => { $("#settings").hidden = !on; $("#open-settings").se
 $("#open-settings").addEventListener("click", () => openSettings($("#settings").hidden));
 $("#close-settings").addEventListener("click", () => openSettings(false));
 const FROM_HOST = [[/^keep\.naver\.com$/, "네이버 Keep"], [/map\.naver\.com$/, "네이버 지도"], [/instagram\.com$/, "인스타그램"], [/youtube\.com$/, "유튜브 재생목록"], [/^(www\.)?google\.[a-z.]+$|^maps\.google\./, "구글 지도"]];
+function sentNote(msg, diag){
+  $("#sent-msg").textContent = msg; $("#sent-note").hidden = false;
+  $("#sent-diag").hidden = !diag; $("#sent-diag").onclick = async () => { const t = JSON.stringify(diag, null, 1); try { await navigator.clipboard.writeText(t); toast("복사했습니다. 대화창에 붙여넣어 주세요."); } catch { prompt("이 내용을 복사하세요.", t); } };
+  showTab("paste"); $("#sent-note").scrollIntoView({ block: "center" });
+}
+$("#sent-close").addEventListener("click", () => { $("#sent-note").hidden = true; });
 function takeSent(){
   const m = location.hash.match(/^#nm=(.+)$/s); if (!m) return;
   history.replaceState(null, "", location.pathname + location.search);
-  let d; try { d = JSON.parse(decodeURIComponent(m[1])); } catch { return toast("보낸 내용을 읽지 못했습니다."); }
-  let text = String(d.t || "").trim(), url = String(d.u || "");
-  // 링크가 2개 이상 보이는 화면(Keep 목록 등)은 링크 목록으로 가져온다
-  const links = !d.sel && Array.isArray(d.l) ? d.l.filter(x => Array.isArray(x) && /^https?:/.test(x[1] || "")) : [];
-  const asLinks = links.length >= 2;
-  if (asLinks) text = links.map(([t, u]) => (t ? t.replace(/https?:\/\/\S+/g, "").trim() + "\n" : "") + u).join("\n\n");
-  if (!text) return toast("그 화면에서 가져올 글이 없었습니다.");
+  let d; try { d = JSON.parse(decodeURIComponent(m[1])); } catch { return sentNote("보낸 내용을 읽지 못했어요. 아무것도 저장하지 않았어요."); }
+  // 예전 버튼은 화면 글 전체를 통째로 보내므로 받지 않는다
+  if (!d || !(d.v >= 3)) return sentNote("예전 버튼이에요. 아무것도 저장하지 않았어요. 설정에서 새 버튼을 북마크바로 다시 끌어다 놓고, 예전 버튼은 지워 주세요.");
+  const url = String(d.u || ""); let host = ""; try { host = new URL(url).hostname; } catch {}
+  const isKeep = /(^|\.)keep\.naver\.com$/.test(host);
+  const links = Array.isArray(d.l) ? d.l.filter(x => Array.isArray(x) && /^https?:/.test(x[1] || "")) : [];
+  let text = "", mode = "";
+  if (d.sel && String(d.t || "").trim()){ text = String(d.t).trim(); mode = "sel"; }
+  else if (links.length >= 2 || (isKeep && links.length)){ text = links.map(([t, u]) => (t ? t.replace(/https?:\/\/\S+/g, "").trim() + "\n" : "") + u).join("\n\n"); mode = "links"; }
+  else if (isKeep) return sentNote("Keep 화면에서 링크를 찾지 못했어요. 아무것도 저장하지 않았어요. '진단 정보 복사'를 눌러 대화창에 붙여넣어 주시면 고칠게요.", d.dg || { note: "no diag" });
+  else if (/^https?:/.test(url)){ text = (String(d.ti || "").trim().slice(0, 160) + "\n" + url).trim(); mode = "page"; }
+  if (!text) return sentNote("그 화면에서 가져올 것이 없었어요. 아무것도 저장하지 않았어요.");
+  $("#sent-note").hidden = true;
   showTab("paste"); setRaw(text);
-  let host = ""; try { host = new URL(url).hostname; } catch {}
-  // 보낸 화면 주소는 글의 출처로만 쓴다 (Keep 주소는 메모마다 같아서 빼고 이름만 남긴다)
-  if (/^https?:/.test(url) && !asLinks){ sentUrl = /^keep\.naver\.com$/.test(host) ? "" : cleanUrl(url); $("#src").value = platformOf(url); $("#src").dataset.touched = "1"; }
+  if (mode === "sel" && /^https?:/.test(url)){ sentUrl = isKeep ? "" : cleanUrl(url); $("#src").value = platformOf(url); $("#src").dataset.touched = "1"; }
   const hit = FROM_HOST.find(([re]) => re.test(host));
   if (hit && !(hit[1] === "구글 지도" && !/\/maps/.test(url))){ $("#from").value = hit[1]; $("#from").dataset.touched = "1"; }
   refreshDetect();
-  if (current.mode === "text" && d.ti && !$("#title").value && !/keep/i.test(host)) $("#title").value = String(d.ti).slice(0, 160);
   $("#confirm").scrollIntoView({ block: "start" });
-  if (asLinks){ $("#more").open = true; $("#tags").placeholder = "태그 (예: Keep 컬렉션 이름 국내여행)"; toast(`그 화면의 링크 ${links.length}개를 가져왔습니다. 확인하고 저장하기를 누르세요.`); return; }
-  toast(d.sel ? "선택한 글을 가져왔습니다. 확인하고 저장하기를 누르세요." : "그 화면의 글을 가져왔습니다. 확인하고 저장하기를 누르세요.");
+  if (mode === "links"){ $("#more").open = true; $("#tags").placeholder = "태그 (예: Keep 컬렉션 이름 국내여행)"; toast(`링크 ${links.length}개를 가져왔어요. 확인하고 저장하기를 누르세요.`); }
+  else if (mode === "page") toast("이 페이지를 링크로 가져왔어요. 확인하고 저장하기를 누르세요.");
+  else toast("선택한 글을 가져왔어요. 확인하고 저장하기를 누르세요.");
 }
 render();
 function ruleTopicsForOld(){
