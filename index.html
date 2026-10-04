@@ -1173,16 +1173,17 @@ const NO_TOPIC = "주제 없음", ETC = "기타";
 let smallTopics = new Set(), moreOpen = false, topicOpen = true;
 let q = "", sort = "new"; const expanded = new Set(); let editing = null;
 // 여러 개 지우기: '삭제'를 누르면 카드마다 체크칸이 생긴다
-let selecting = false, delArmed = false; const picked = new Set();
+let selecting = false, delArmed = false, onPage = []; const picked = new Set();
 function setSelecting(on){ selecting = on; picked.clear(); delArmed = false; $("#lib-tools").hidden = on; $("#sel-tools").hidden = !on; editing = null; render(); }
 function updateSelTools(){
   const n = picked.size, b = $("#sel-del"); b.disabled = !n;
   b.textContent = !n ? "삭제" : delArmed ? `${n.toLocaleString()}개를 지울까요?` : `${n.toLocaleString()}개 삭제`;
-  const vs = visible(); $("#sel-all").textContent = vs.length && vs.every(i => picked.has(i.id)) ? "선택 해제" : "전체 선택";
+  const vs = onPage; $("#sel-all").textContent = vs.length && vs.every(i => picked.has(i.id)) ? "선택 해제" : "전체 선택";
 }
 $("#sel-start").addEventListener("click", () => setSelecting(true));
 $("#sel-cancel").addEventListener("click", () => setSelecting(false));
-$("#sel-all").addEventListener("click", () => { const vs = visible(); const all = vs.length && vs.every(i => picked.has(i.id)); vs.forEach(i => all ? picked.delete(i.id) : picked.add(i.id)); delArmed = false; render(); });
+// '전체 선택'은 지금 페이지에 보이는 카드만 고른다 (다른 페이지에서 고른 건 그대로)
+$("#sel-all").addEventListener("click", () => { const vs = onPage; const all = vs.length && vs.every(i => picked.has(i.id)); vs.forEach(i => all ? picked.delete(i.id) : picked.add(i.id)); delArmed = false; render(); });
 $("#sel-del").addEventListener("click", async () => {
   if (!picked.size) return;
   if (!delArmed){ delArmed = true; updateSelTools(); return; }
@@ -1362,7 +1363,7 @@ function render(){
   if (selecting) updateSelTools();
   let tl = $("#topic-all"); if (!tl){ tl = el("datalist", { id: "topic-all" }); document.body.append(tl); }
   tl.textContent = ""; [...new Set(TOPIC_RULES.map(r => r[0]).concat(items.map(i => i.topic)).filter(Boolean))].forEach(t => tl.append(el("option", { value: t })));
-  const list = $("#list"); list.textContent = "";
+  const list = $("#list"); list.textContent = ""; onPage = [];
   $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
   const untopiced = items.filter(i => !i.topic || i.topicBy === "rule").length;
   $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
@@ -1379,7 +1380,8 @@ function render(){
   const key = JSON.stringify([q, sort, F]);
   if (key !== pageKey){ pageKey = key; page = 1; }
   const pages = Math.ceil(vs.length / PAGE_SIZE); page = Math.min(Math.max(1, page), pages);
-  vs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).forEach(n => list.append(card(n)));
+  onPage = vs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE); onPage.forEach(n => list.append(card(n)));
+  if (selecting) updateSelTools();
   if (pages > 1) list.append(pager(pages));
 }
 const PAGE_SIZE = 40;
