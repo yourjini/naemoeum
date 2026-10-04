@@ -1515,13 +1515,13 @@ function openTopicMenu(anchor, n, onPick){
   const list = el("div", { class: "tm-list" });
   const subs = subsByTopic();
   allTopics().forEach(t => {
-    list.append(el("button", { type: "button", role: "menuitem", class: t === cur && !curSub ? "on" : "", text: t, onclick: () => pick(t, subs.has(t) ? "" : undefined) }));
+    list.append(el("button", { type: "button", role: "menuitem", class: t === cur && !curSub ? "on" : "", text: t, onclick: () => pick(t, "") }));
     if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), text: sb, onclick: () => pick(t, sb) })));
   });
-  if (cur || (onPick && onPick.allowNone)) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("") }));
+  if (cur || (onPick && onPick.allowNone)) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("", "") }));
   const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
   const form = el("form", { class: "tm-new" }, inp, el("button", { type: "submit", class: "btn", text: "추가" }));
-  form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) pick(inp.value); });
+  form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) pick(inp.value, ""); });
   m.append(list, form); m.addEventListener("click", e => e.stopPropagation());
   document.body.append(m); topicMenu = m;
   const r = anchor.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
