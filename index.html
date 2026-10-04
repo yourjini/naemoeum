@@ -207,11 +207,16 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .topic-list li{display:flex;align-items:center;gap:2px}
 .topic-list li .fbtn{flex:1 1 auto;min-width:0}
 .t-slot{flex:none;width:26px;height:24px}
+.t-tog{flex:none;width:18px;height:24px;border:0;background:transparent;color:var(--muted);font-size:11px;padding:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:4px}
+button.t-tog:hover{background:var(--soft);color:var(--ink)}
+button.t-tog svg{transition:transform .15s}
+button.t-tog[aria-expanded="true"] svg{transform:rotate(90deg)}
+.fbtn.sub{padding-left:14px}
 .t-edit{padding:4px 5px;opacity:0;justify-content:center}
 .topic-list li.dragging{opacity:.4}
 .topic-list li.drop-on .fbtn,.topic-filters > summary.drop-on{outline:2px dashed var(--accent);outline-offset:-2px;border-radius:6px}
 .t-editrow select{padding:5px 8px;font-size:14px}
-@media (max-width:860px){.topic-list li > span.t-slot{display:none}}
+@media (max-width:860px){.topic-list li > span.t-slot,.topic-list li > span.t-tog{display:none}}
 .fgroup li:hover .t-edit,.t-edit:focus-visible,.fgroup li:has([aria-pressed="true"]) .t-edit{opacity:1}
 @media (hover:none){.t-edit{opacity:.6}}
 .t-editrow{display:flex;flex-direction:column;gap:6px;padding:4px 0}
@@ -1243,6 +1248,10 @@ $("#ai-classify").addEventListener("click", () => { const todo = items.filter(i 
 const F = { topic: null, sub: null, type: null, platform: null, savedFrom: null, tag: null };
 const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", sub: "세부", tag: "태그" };
 const NO_TOPIC = "주제 없음", ETC = "기타";
+// 펼쳐 둔 주제는 기억한다 (이 브라우저)
+const openTopics = new Set((() => { try { return JSON.parse(localStorage.getItem("naemoeum.openTopics.v1") || "[]"); } catch { return []; } })());
+const saveOpenTopics = () => { try { localStorage.setItem("naemoeum.openTopics.v1", JSON.stringify([...openTopics])); } catch {} };
+const chev = b => { b.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>'; return b; };
 let smallTopics = new Set(), moreOpen = false, topicOpen = true, topicEdit = null, topicDelArmed = false, dragTopic = null;
 const PEN_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 // 주제·세부 주제 옮기기: parent가 있으면 그 아래 세부로, 없으면 맨 위 주제로
@@ -1255,6 +1264,7 @@ async function moveTopic(src, parent){
   const P = topicPrefs.parent;
   if (parent){ P[name] = parent; for (const k of Object.keys(P)) if (P[k] === name) P[k] = parent; } else delete P[name];
   saveTopicPrefs();
+  if (parent){ openTopics.add(parent); saveOpenTopics(); }
   F.topic = parent || name; F.sub = null; topicOpen = true; render();
   toast(parent ? `'${name}'을(를) '${parent}' 아래로 옮겼습니다.` : `'${name}'을(를) 밖으로 뺐습니다.`);
 }
@@ -1337,7 +1347,7 @@ function countsFor(k){
 }
 function renderFilters(){
   const box = $("#filters"); box.textContent = "";
-  const fbtn = (k, v, n, label, cls) => el("li", {}, el("button", { class: "fbtn" + (cls ? " " + cls : ""), type: "button", "aria-pressed": String(F[k] === v), onclick: () => { F[k] = F[k] === v ? null : v; if (k === "topic") F.sub = null; render(); } },
+  const fbtn = (k, v, n, label, cls, parent) => el("li", {}, el("button", { class: "fbtn" + (cls ? " " + cls : ""), type: "button", "aria-pressed": String(F[k] === v && (!parent || F.topic === parent)), onclick: () => { if (parent && F.topic !== parent){ F.topic = parent; F.sub = v; } else F[k] = F[k] === v ? null : v; if (k === "topic"){ F.sub = null; if (F.topic){ openTopics.add(F.topic); saveOpenTopics(); } } render(); } },
     k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: label || (k === "tag" ? "#" + v : v) }), el("span", { class: "stats", text: n.toLocaleString() })));
   // 주제: 큰 주제만 보이고, 고르면 세부 주제가 그 아래에 열린다. 3개 미만인 주제는 '기타'로 묶는다.
   const all = new Map(); items.forEach(i => { const t = i.topic || NO_TOPIC; all.set(t, (all.get(t) || 0) + 1); });
@@ -1364,16 +1374,23 @@ function renderFilters(){
     node.addEventListener("dragleave", () => node.classList.remove("drop-on"));
     node.addEventListener("drop", e => { e.preventDefault(); node.classList.remove("drop-on"); const src = dragTopic; dragTopic = null; if (src) moveTopic(src, parent); });
   };
+  const hasSub = new Set(items.filter(i => i.topic && i.sub).map(i => i.topic));
   order.forEach(([t, n]) => {
     const real = t !== ETC && t !== NO_TOPIC;
     if (topicEdit === t){ ul.append(topicEditRow(t)); return; }
     const li = withPen(fbtn("topic", t, n, t, t === NO_TOPIC ? "muted" : ""), t, real ? { t } : null); ul.append(li);
     if (real) dropTo(li, t);
-    if (F.topic === t && real){
-      const sm = new Map(); items.filter(i => matches(i, "sub") && i.topic === t).forEach(i => { const s = i.sub || ""; if (s) sm.set(s, (sm.get(s) || 0) + 1); });
+    // 세부 주제가 있으면 앞에 펼침 단추 (없으면 같은 폭의 빈칸)
+    const open = real && hasSub.has(t) && openTopics.has(t);
+    if (real && hasSub.has(t)) li.prepend(chev(el("button", { type: "button", class: "t-tog", "aria-expanded": String(open), "aria-label": open ? "세부 주제 접기" : "세부 주제 펼치기", onclick: () => { openTopics.has(t) ? openTopics.delete(t) : openTopics.add(t); saveOpenTopics(); render(); } })));
+    else li.prepend(el("span", { class: "t-tog" }));
+    if (open){
+      const sm = new Map(); items.filter(i => i.topic === t && matches(i, F.topic === t ? "sub" : "topic")).forEach(i => { const s = i.sub || ""; if (s) sm.set(s, (sm.get(s) || 0) + 1); });
       [...sm.entries()].sort((a, b) => topicCmp(a[0], b[0])).forEach(([s, n2]) => {
         const key = t + "\u0000" + s;
-        ul.append(topicEdit === key ? topicEditRow(t, s) : withPen(fbtn("sub", s, n2, s, "sub"), key, { t, s }));
+        const row = topicEdit === key ? topicEditRow(t, s) : withPen(fbtn("sub", s, n2, s, "sub", t), key, { t, s });
+        if (topicEdit !== key) row.prepend(el("span", { class: "t-tog" }));
+        ul.append(row);
       });
     }
   });
