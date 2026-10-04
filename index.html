@@ -169,16 +169,39 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:14px;padding:9px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100vw - 32px);z-index:5}
 .toast.show{opacity:1}
+.set-btn{margin-left:auto;align-self:center}
+#settings h2{margin:0}
+.bm-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);padding:8px 14px;border-radius:8px;border:1px dashed var(--accent);color:var(--accent);background:var(--sheet);text-decoration:none;cursor:grab}
+#settings ol{margin:0;padding-left:20px;line-height:1.7;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
 </head>
 <body>
+
 <div class="wrap">
   <header class="top">
     <h1><span class="hl">내모음</span></h1>
     <p class="tagline">네이버 지도, 구글 지도, 크롬 즐겨찾기, 네이버 Keep, 유튜브 재생목록, 직접 모은 링크까지 한곳에. 어디서 왔는지, 영상인지 글인지, 무슨 내용인지로 나눠 둡니다.</p>
+    <button class="btn set-btn" id="open-settings" type="button" aria-expanded="false" aria-controls="settings">설정</button>
   </header>
+
+  <section class="panel stack" id="settings" aria-labelledby="h-set" hidden>
+    <div class="row between"><h2 id="h-set">내모음으로 보내기 버튼</h2>
+      <button class="btn ghost" id="close-settings" type="button">닫기</button></div>
+    <p class="note">네이버 Keep, 블로그 같은 화면에서 이 버튼을 누르면 그 화면의 글을 내모음으로 가져옵니다. 직접 누를 때만 동작하고, 계정 정보는 쓰지 않습니다.</p>
+    <div class="bm-row">
+      <a class="bm" id="bm-link" href="#" draggable="true">＋ 내모음으로 보내기</a>
+      <button class="btn" id="bm-copy" type="button">버튼 주소 복사</button>
+    </div>
+    <ol>
+      <li>크롬에서 Ctrl+Shift+B로 북마크바를 켭니다.</li>
+      <li>위의 <b>＋ 내모음으로 보내기</b>를 북마크바로 끌어다 놓습니다.</li>
+      <li>Keep 화면에서 북마크바의 버튼을 누르면 새 탭에 내모음이 열리고, 확인 후 <b>저장하기</b>를 누르면 됩니다.</li>
+    </ol>
+    <p class="note">메모 하나만 가져오려면 그 글을 마우스로 긁어 선택한 뒤 누르세요. 선택하지 않으면 화면에 보이는 글 전체를 가져옵니다. 끌어다 놓기가 안 되면 아무 페이지를 북마크로 추가한 뒤, 주소 칸에 '버튼 주소 복사'로 복사한 내용을 붙여넣으세요.</p>
+    <p class="note" id="bm-where"></p>
+  </section>
 
   <!-- 담기 -->
   <section class="panel stack" aria-labelledby="h-in">
@@ -541,7 +564,7 @@ const EXAMPLE = `테스트 자동화 입문 강의
 https://youtu.be/dQw4w9WgXcQ?si=abc123
 연남동 조용한 카페 https://map.naver.com/p/entry/place/1234567890
 https://blog.naver.com/example/223456789`;
-let isExample = true, current = { mode: "empty", items: [] }, fromImage = false;
+let isExample = true, current = { mode: "empty", items: [] }, fromImage = false, sentUrl = "";
 function refreshDetect(){
   const raw = $("#raw").value; current = analyze(raw);
   const box = $("#detect"); box.textContent = "";
@@ -564,7 +587,7 @@ function refreshDetect(){
   } else {
     const ty = fromImage ? "image" : "text";
     box.append(el("div", { class: "d-item" }, el("span", { class: "kind k-" + ty, text: TYPE_LABEL[ty] }),
-      el("span", { class: "t", text: current.url ? `${current.platform}에서 온 글` : (fromImage ? "이미지에서 읽은 글" : "직접 붙여넣은 글") })));
+      el("span", { class: "t", text: current.url ? `${current.platform}에서 온 글` : $("#src").dataset.touched === "1" && $("#src").value.trim() ? `${$("#src").value.trim()}에서 가져온 글` : (fromImage ? "이미지에서 읽은 글" : "직접 붙여넣은 글") })));
     if (current.url) box.append(el("span", { class: "stats", text: current.url }));
     retidy();
   }
@@ -580,7 +603,7 @@ $("#out").addEventListener("input", updateStats);
 $("#src").addEventListener("input", () => { $("#src").dataset.touched = "1"; });
 $("#from").addEventListener("change", () => { $("#from").dataset.touched = "1"; });
 function setRaw(text, opt = {}){
-  $("#raw").value = text; isExample = !!opt.example; fromImage = !!opt.image; $("#raw-note").hidden = !isExample;
+  $("#raw").value = text; sentUrl = ""; isExample = !!opt.example; fromImage = !!opt.image; $("#raw-note").hidden = !isExample;
   if (!opt.keepMeta){ $("#src").value = ""; $("#src").dataset.touched = ""; $("#title").value = ""; $("#tags").value = ""; $("#from").dataset.touched = ""; }
   refreshDetect();
 }
@@ -601,7 +624,7 @@ $("#save").addEventListener("click", async () => {
     list = current.items.filter(i => !known.has(urlKey(i.url))).map(i => ({ ...i, title: i.title || defaultTitle(i.url), tags, savedFrom }));
   } else if (current.mode === "text"){
     const text = $("#out").value.trim(); if (!text) return toast("저장할 글이 없습니다.");
-    list = [{ type: fromImage ? "image" : "text", url: current.url, platform: $("#src").value.trim() || (current.url ? current.platform : (fromImage ? "스크린샷" : "직접 입력")), title: $("#title").value.trim() || firstSentence(text), text, tags, savedFrom }];
+    list = [{ type: fromImage ? "image" : "text", url: current.url || sentUrl, platform: $("#src").value.trim() || (current.url ? current.platform : (fromImage ? "스크린샷" : "직접 입력")), title: $("#title").value.trim() || firstSentence(text), text, tags, savedFrom }];
   }
   if (!list.length) return;
   const btn = $("#save"); btn.disabled = true; btn.textContent = "저장하는 중…";
@@ -1049,10 +1072,43 @@ $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.l
     });
   }).catch(() => {});
 })();
+// 내모음으로 보내기: 북마크바 버튼이 지금 화면의 글을 #nm= 뒤에 담아 웹 버전을 연다
+const NM_HOME = "https://naemoeum.vercel.app/";
+const BOOKMARKLET = "javascript:(()=>{try{const s=String(getSelection()||'').trim(),t=(s||(document.body&&document.body.innerText)||'').slice(0,30000),d={v:1,u:location.href,ti:document.title,t:t,sel:!!s},w=window.open('" + NM_HOME + "#nm='+encodeURIComponent(JSON.stringify(d)),'_blank');if(!w)alert('팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.')}catch(e){alert('내모음으로 보내지 못했어요: '+e.message)}})()";
+$("#bm-link").setAttribute("href", BOOKMARKLET);
+$("#bm-link").addEventListener("click", e => { e.preventDefault(); toast("누르지 말고 북마크바로 끌어다 놓으세요."); });
+$("#bm-copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(BOOKMARKLET); toast("복사했습니다. 북마크 주소 칸에 붙여넣으세요."); }
+  catch { prompt("아래 내용을 복사하세요.", BOOKMARKLET); }
+});
+$("#bm-where").textContent = location.hostname === "naemoeum.vercel.app" ? "" : "가져온 글은 웹 버전(naemoeum.vercel.app)에 저장됩니다. 이 페이지와 웹 버전의 목록은 따로 보관됩니다.";
+const openSettings = on => { $("#settings").hidden = !on; $("#open-settings").setAttribute("aria-expanded", String(on)); if (on) $("#settings").scrollIntoView({ block: "nearest" }); };
+$("#open-settings").addEventListener("click", () => openSettings($("#settings").hidden));
+$("#close-settings").addEventListener("click", () => openSettings(false));
+const FROM_HOST = [[/^keep\.naver\.com$/, "네이버 Keep"], [/map\.naver\.com$/, "네이버 지도"], [/instagram\.com$/, "인스타그램"], [/youtube\.com$/, "유튜브 재생목록"], [/^(www\.)?google\.[a-z.]+$|^maps\.google\./, "구글 지도"]];
+function takeSent(){
+  const m = location.hash.match(/^#nm=(.+)$/s); if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  let d; try { d = JSON.parse(decodeURIComponent(m[1])); } catch { return toast("보낸 내용을 읽지 못했습니다."); }
+  let text = String(d.t || "").trim(), url = String(d.u || "");
+  if (!text) return toast("그 화면에서 가져올 글이 없었습니다.");
+  showTab("paste"); setRaw(text);
+  let host = ""; try { host = new URL(url).hostname; } catch {}
+  // 보낸 화면 주소는 글의 출처로만 쓴다 (Keep 주소는 메모마다 같아서 빼고 이름만 남긴다)
+  if (/^https?:/.test(url)){ sentUrl = /^keep\.naver\.com$/.test(host) ? "" : cleanUrl(url); $("#src").value = platformOf(url); $("#src").dataset.touched = "1"; }
+  const hit = FROM_HOST.find(([re]) => re.test(host));
+  if (hit && !(hit[1] === "구글 지도" && !/\/maps/.test(url))){ $("#from").value = hit[1]; $("#from").dataset.touched = "1"; }
+  refreshDetect();
+  if (current.mode === "text" && d.ti && !$("#title").value && !/keep/i.test(host)) $("#title").value = String(d.ti).slice(0, 160);
+  $("#confirm").scrollIntoView({ block: "start" });
+  toast(d.sel ? "선택한 글을 가져왔습니다. 확인하고 저장하기를 누르세요." : "그 화면의 글을 가져왔습니다. 확인하고 저장하기를 누르세요.");
+}
 render();
-initStore().catch(() => useLocal());
+takeSent();
+initStore().catch(() => useLocal()).finally(() => { if ($("#raw").value.trim()) refreshDetect(); });
 })();
 </script>
+
 
 </body>
 </html>
