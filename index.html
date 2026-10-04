@@ -143,6 +143,13 @@ aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:ca
 
 #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--sheet);min-width:0;display:flex;flex-direction:column;gap:6px}
+.card.selectable{cursor:pointer}
+.card.picked{border-color:var(--danger,#c0392b);box-shadow:0 0 0 1px var(--danger,#c0392b) inset}
+.card .head .pick + .kind{margin-right:auto}
+.card .pick{width:18px;height:18px;margin:0 6px 0 0;accent-color:var(--danger,#c0392b);flex:none}
+button.btn.danger{color:var(--danger,#c0392b)}
+button.btn.danger-fill{background:var(--danger,#c0392b);border-color:var(--danger,#c0392b);color:#fff}
+button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .card .head{display:flex;justify-content:space-between;gap:8px;align-items:center;min-width:0}
 .srcbox{display:inline-flex;align-items:center;gap:4px;min-width:0;font:12px/1.3 var(--f-body);color:var(--muted)}
 .srcbox input{font:12.5px/1.3 var(--f-body);color:var(--ink);background:transparent;border:1px dashed var(--line);border-radius:6px;padding:3px 7px;width:9.5em;min-width:0}
@@ -333,11 +340,17 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
       <div class="lib-main">
         <div class="row between">
           <h2 id="h-lib">저장한 목록 <span class="stats" id="count"></span></h2>
-          <div class="row">
+          <div class="row" id="lib-tools">
             <button class="btn" id="fill-preview" type="button" hidden>썸네일 채우기</button>
             <button class="btn" id="ai-classify" type="button" hidden>AI로 분류</button>
             <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
             <button class="btn ghost" id="dl-all" type="button" hidden>파일로 받기</button>
+            <button class="btn ghost danger" id="sel-start" type="button">삭제</button>
+          </div>
+          <div class="row" id="sel-tools" hidden>
+            <button class="btn ghost" id="sel-all" type="button">전체 선택</button>
+            <button class="btn danger-fill" id="sel-del" type="button" disabled>삭제</button>
+            <button class="btn ghost" id="sel-cancel" type="button">취소</button>
           </div>
         </div>
         <div class="toolbar">
@@ -620,6 +633,11 @@ async function addItems(list, onStep){
 async function updateItem(id, patch){
   if (store === "db"){ await col.doc(id).update(patch); return; }
   items = items.map(i => i.id === id ? normalize({ ...i, ...patch }) : i); local.write(items); render();
+}
+async function removeItems(ids){
+  const set = new Set(ids);
+  if (store === "db"){ let k = 0; const w = async () => { while (k < ids.length){ const id = ids[k++]; await col.doc(id).delete(); } }; await Promise.all([w(), w(), w(), w()]); return; }
+  items = items.filter(i => !set.has(i.id)); local.write(items); render();
 }
 async function removeItem(id){
   if (store === "db"){ await col.doc(id).delete(); return; }
@@ -982,7 +1000,25 @@ const F = { topic: null, sub: null, type: null, platform: null, savedFrom: null,
 const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", sub: "세부", tag: "태그" };
 const NO_TOPIC = "주제 없음", ETC = "기타";
 let smallTopics = new Set(), moreOpen = false;
-let q = "", sort = "new"; const expanded = new Set(); let confirming = null, editing = null;
+let q = "", sort = "new"; const expanded = new Set(); let editing = null;
+// 여러 개 지우기: '삭제'를 누르면 카드마다 체크칸이 생긴다
+let selecting = false, delArmed = false; const picked = new Set();
+function setSelecting(on){ selecting = on; picked.clear(); delArmed = false; $("#lib-tools").hidden = on; $("#sel-tools").hidden = !on; editing = null; render(); }
+function updateSelTools(){
+  const n = picked.size, b = $("#sel-del"); b.disabled = !n;
+  b.textContent = !n ? "삭제" : delArmed ? `${n.toLocaleString()}개를 지울까요?` : `${n.toLocaleString()}개 삭제`;
+  const vs = visible(); $("#sel-all").textContent = vs.length && vs.every(i => picked.has(i.id)) ? "선택 해제" : "전체 선택";
+}
+$("#sel-start").addEventListener("click", () => setSelecting(true));
+$("#sel-cancel").addEventListener("click", () => setSelecting(false));
+$("#sel-all").addEventListener("click", () => { const vs = visible(); const all = vs.length && vs.every(i => picked.has(i.id)); vs.forEach(i => all ? picked.delete(i.id) : picked.add(i.id)); delArmed = false; render(); });
+$("#sel-del").addEventListener("click", async () => {
+  if (!picked.size) return;
+  if (!delArmed){ delArmed = true; updateSelTools(); return; }
+  const ids = [...picked], b = $("#sel-del"); b.disabled = true; b.textContent = "지우는 중…";
+  try { await removeItems(ids); toast(`${ids.length.toLocaleString()}개를 지웠습니다.`); } catch { toast("일부를 지우지 못했습니다."); }
+  setSelecting(false);
+});
 $("#q").addEventListener("input", e => { q = e.target.value.trim(); render(); });
 $("#sort").addEventListener("change", e => { sort = e.target.value; render(); });
 const valOf = (i, k) => k === "tag" ? i.tags : k === "topic" ? [i.topic || NO_TOPIC] : k === "sub" ? [i.sub || ""] : [i[k]];
@@ -1079,9 +1115,18 @@ function topicField(n){
   return el("label", { class: "topicbox" + (n.topic ? "" : " empty") }, inp);
 }
 function card(n){
-  const c = el("article", { class: "card" + (editing === n.id ? " editing" : "") });
+  const c = el("article", { class: "card" + (editing === n.id ? " editing" : "") + (selecting ? " selectable" + (picked.has(n.id) ? " picked" : "") : "") });
+  if (selecting){
+    const cb = el("input", { type: "checkbox", class: "pick", "aria-label": "선택" }); cb.checked = picked.has(n.id);
+    const toggle = () => { picked.has(n.id) ? picked.delete(n.id) : picked.add(n.id); delArmed = false; c.classList.toggle("picked", picked.has(n.id)); cb.checked = picked.has(n.id); updateSelTools(); };
+    cb.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+    c.addEventListener("click", e => { if (e.target.closest("a,input,button,select,textarea,label")) return; toggle(); });
+    c.addEventListener("click", e => { const a = e.target.closest("a"); if (a){ e.preventDefault(); toggle(); } }, true);
+    c._cb = cb;
+  }
   const href = safeHref(n.url);
   c.append(el("div", { class: "head" }, el("span", { class: "kind k-" + n.type, text: TYPE_LABEL[n.type] || "링크" }), srcField(n)));
+  if (c._cb) c.querySelector(".head").prepend(c._cb);
   const title = el("h3", { class: "title" });
   if (href) title.append(hl(el("a", { href, target: "_blank", rel: "noopener" }), n.title || defaultTitle(n.url), q)); else hl(title, n.title || firstSentence(n.text || ""), q);
   c.append(title);
@@ -1099,9 +1144,7 @@ function card(n){
   const mk = (label, fn, cls) => act.append(el("button", { type: "button", class: "btn ghost" + (cls ? " " + cls : ""), text: label, onclick: fn }));
   if (n.text && (n.text.length > 180 || n.text.split("\n").length > 4)) mk(expanded.has(n.id) ? "접기" : "펼치기", () => { expanded.has(n.id) ? expanded.delete(n.id) : expanded.add(n.id); render(); });
   mk("복사", () => copyText([n.title, n.url, n.text].filter(Boolean).join("\n")));
-  mk("편집", () => { editing = n.id; confirming = null; render(); });
-  if (confirming === n.id){ act.append(el("span", { class: "confirm", text: "지울까요?" })); mk("지우기", async () => { confirming = null; try { await removeItem(n.id); toast("지웠습니다."); } catch { toast("지우지 못했습니다."); } }, "danger"); mk("취소", () => { confirming = null; render(); }); }
-  else mk("삭제", () => { confirming = n.id; render(); }, "danger");
+  mk("편집", () => { editing = n.id; render(); });
   c.append(el("div", { class: "foot" }, el("span", { class: "when", text: `${n.savedFrom} · ${fmtDate(n.savedAt || n.createdAt)}` }), act));
   return c;
 }
@@ -1127,6 +1170,7 @@ function editForm(n){
 }
 function render(){
   renderFilters();
+  if (selecting) updateSelTools();
   let tl = $("#topic-all"); if (!tl){ tl = el("datalist", { id: "topic-all" }); document.body.append(tl); }
   tl.textContent = ""; [...new Set(TOPIC_RULES.map(r => r[0]).concat(items.map(i => i.topic)).filter(Boolean))].forEach(t => tl.append(el("option", { value: t })));
   const list = $("#list"); list.textContent = "";
