@@ -178,11 +178,11 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
   <!-- 담기 -->
   <section class="panel stack" aria-labelledby="h-in">
     <div class="row between">
-      <h2 id="h-in">담기</h2>
-      <div class="tabs" role="tablist" aria-label="담는 방법">
+      <h2 id="h-in">새로 저장하기</h2>
+      <div class="tabs" role="tablist" aria-label="저장 방법">
         <button id="tab-paste" role="tab" aria-selected="true" aria-controls="pane-paste">링크·글 붙여넣기</button>
         <button id="tab-img" role="tab" aria-selected="false" aria-controls="pane-img">이미지</button>
-        <button id="tab-file" role="tab" aria-selected="false" aria-controls="pane-file">저장 목록 가져오기</button>
+        <button id="tab-file" role="tab" aria-selected="false" aria-controls="pane-file">파일로 한꺼번에 가져오기</button>
       </div>
     </div>
 
@@ -200,7 +200,7 @@ https://youtu.be/dQw4w9WgXcQ
       </div>
 
       <div class="step" id="confirm" hidden>
-        <div class="step-head"><span class="num">2</span><span id="detect-label">이렇게 담을게요</span></div>
+        <div class="step-head"><span class="num">2</span><span id="detect-label">저장될 항목 미리보기</span></div>
         <div class="detect" id="detect" aria-labelledby="detect-label"></div>
         <div id="text-mode" class="stack" hidden>
           <input type="text" id="title" placeholder="제목 (비우면 첫 문장으로)" aria-label="제목">
@@ -224,10 +224,10 @@ https://youtu.be/dQw4w9WgXcQ
       </div>
 
       <div class="step">
-        <div class="step-head"><span class="num">3</span><span>서재에 담기</span></div>
+        <div class="step-head"><span class="num">3</span><span>저장하기</span></div>
         <div class="row">
-          <button class="btn primary big" id="save" type="button" disabled>서재에 담기</button>
-          <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>담을 때 AI로 주제 붙이기</label>
+          <button class="btn primary big" id="save" type="button" disabled>저장하기</button>
+          <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>저장할 때 AI로 주제 붙이기</label>
           <span class="note" id="save-hint">1번 칸에 붙여넣으면 눌러집니다 · Ctrl+Enter</span>
         </div>
       </div>
@@ -250,7 +250,7 @@ https://youtu.be/dQw4w9WgXcQ
         <span class="note" id="ocr-note"></span>
       </div>
       <div class="thumbs" id="thumbs"></div>
-      <p class="note">읽은 글은 '링크·글 붙여넣기' 칸으로 옮겨집니다. 거기서 다듬고 담으세요.</p>
+      <p class="note">읽은 글은 '링크·글 붙여넣기' 칸으로 옮겨집니다. 거기서 확인하고 저장하세요.</p>
     </div>
 
     <!-- 파일 가져오기 -->
@@ -264,9 +264,9 @@ https://youtu.be/dQw4w9WgXcQ
         <ul class="note" style="padding-left:18px;margin:0;display:flex;flex-direction:column;gap:4px">
           <li><b>크롬 즐겨찾기</b>: 주소창에 chrome://bookmarks 입력 → 오른쪽 위 ⋮ → 북마크 내보내기 → 저장된 .html 파일을 여기에 올리세요. 폴더 이름은 태그가 됩니다.</li>
           <li><b>유튜브 재생목록</b>: 재생목록 페이지를 열고 끝까지 내린 뒤 전체 선택(Ctrl+A)·복사해서 '링크·글 붙여넣기'에 붙이면 영상 제목과 링크를 뽑습니다. 목록 전체는 Google 테이크아웃(takeout.google.com) → YouTube → 재생목록 .csv를 여기에 올려도 됩니다.</li>
-          <li><b>네이버 지도</b>: 저장한 장소에서 공유 → 복사한 문구([네이버 지도] 장소 이름, 주소, 링크)를 그대로 붙여넣으면 '장소'로 담깁니다. 여러 곳을 이어 붙여도 됩니다.</li>
+          <li><b>네이버 지도</b>: 저장한 장소에서 공유 → 복사한 문구([네이버 지도] 장소 이름, 주소, 링크)를 그대로 붙여넣으면 '장소'로 저장됩니다. 여러 곳을 이어 붙여도 됩니다.</li>
           <li><b>구글 지도</b>: takeout.google.com에서 '저장됨'(장소 목록 .csv)과 '지도(내 장소)'(저장된 장소.json)를 골라 내보낸 뒤 그 파일들을 여기에 올리세요. 목록 이름 파일 여러 개를 한 번에 올려도 됩니다.</li>
-          <li><b>네이버 Keep</b>: 내보내기 기능이 없어요. Keep 화면에서 메모를 선택·복사해 붙여넣으세요. 링크가 여러 개면 한 번에 나눠 담습니다.</li>
+          <li><b>네이버 Keep</b>: 내보내기 기능이 없어요. Keep 화면에서 메모를 선택·복사해 붙여넣으세요. 링크가 여러 개면 한 번에 나눠 저장합니다.</li>
           <li><b>직접 입력</b>: 링크만, 또는 "제목 링크"나 윗줄 제목 + 아랫줄 링크 형태로 여러 줄 붙여넣으세요.</li>
         </ul>
       </div>
@@ -280,7 +280,7 @@ https://youtu.be/dQw4w9WgXcQ
         <div class="progress" id="import-progress" hidden><i></i></div>
         <div class="row between">
           <span class="note" id="import-note"></span>
-          <button class="btn primary" id="import-go" type="button" disabled>모두 담기</button>
+          <button class="btn primary" id="import-go" type="button" disabled>모두 저장하기</button>
         </div>
       </div>
     </div>
@@ -292,7 +292,7 @@ https://youtu.be/dQw4w9WgXcQ
       <aside class="filters" id="filters" aria-label="분류"></aside>
       <div class="lib-main">
         <div class="row between">
-          <h2 id="h-lib">내 서재 <span class="stats" id="count"></span></h2>
+          <h2 id="h-lib">저장한 목록 <span class="stats" id="count"></span></h2>
           <div class="row">
             <button class="btn" id="ai-classify" type="button" hidden>AI로 분류</button>
             <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
@@ -300,9 +300,9 @@ https://youtu.be/dQw4w9WgXcQ
           </div>
         </div>
         <div class="toolbar">
-          <input type="search" id="q" placeholder="제목, 내용, 주소, 태그로 찾기" aria-label="서재 검색">
+          <input type="search" id="q" placeholder="제목, 내용, 주소, 태그로 찾기" aria-label="저장한 목록 검색">
           <select id="sort" aria-label="정렬">
-            <option value="new">최근 담은 순</option>
+            <option value="new">최근 저장한 순</option>
             <option value="old">오래된 순</option>
             <option value="title">제목 순</option>
           </select>
@@ -546,10 +546,10 @@ function refreshDetect(){
   if (current.mode === "empty"){ box.append(el("span", { class: "note", text: "아직 아무것도 없습니다. 링크나 글을 붙여넣어 보세요." })); }
   else if (current.mode === "links"){
     const fresh = current.items.filter(i => !known.has(urlKey(i.url))).length;
-    box.append(el("span", { class: "note", text: `${current.items.length}개 찾음${fresh < current.items.length ? ` · 이미 담긴 ${current.items.length - fresh}개는 건너뜀` : ""}` }));
+    box.append(el("span", { class: "note", text: `${current.items.length}개 찾음${fresh < current.items.length ? ` · 이미 저장된 ${current.items.length - fresh}개는 건너뜀` : ""}` }));
     current.items.slice(0, 60).forEach(i => box.append(el("div", { class: "d-item" },
       el("span", { class: "kind k-" + i.type, text: TYPE_LABEL[i.type] }), el("span", { class: "stats", text: i.platform }),
-      el("span", { class: "t", text: (i.title || i.url) + (i.type === "place" && i.text ? " · " + i.text.split("\n")[0] : "") }), known.has(urlKey(i.url)) ? el("span", { class: "dup", text: "담겨 있음" }) : null)));
+      el("span", { class: "t", text: (i.title || i.url) + (i.type === "place" && i.text ? " · " + i.text.split("\n")[0] : "") }), known.has(urlKey(i.url)) ? el("span", { class: "dup", text: "이미 저장됨" }) : null)));
     // 저장했던 곳 추정
     const ps = current.items.map(i => i.platform);
     if ($("#from").dataset.touched !== "1"){ $("#from").value = !ps.length ? "직접 입력" : current.items.every(i => i.type === "place") ? "네이버 지도" : ps.every(p => p === "YouTube") ? "유튜브 재생목록" : ps.every(p => p === "Instagram") ? "인스타그램" : ps.some(p => p === "네이버 Keep") ? "네이버 Keep" : "직접 입력"; }
@@ -560,7 +560,7 @@ function refreshDetect(){
     if (current.url) box.append(el("span", { class: "stats", text: current.url }));
     retidy();
   }
-  $("#save").textContent = current.mode === "links" ? `서재에 ${current.items.filter(i => !known.has(urlKey(i.url))).length}개 담기` : "서재에 담기";
+  $("#save").textContent = current.mode === "links" ? `${current.items.filter(i => !known.has(urlKey(i.url))).length}개 저장하기` : "저장하기";
   $("#save").disabled = current.mode === "empty" || (current.mode === "links" && !current.items.some(i => !known.has(urlKey(i.url))));
 }
 function retidy(){
@@ -591,17 +591,17 @@ $("#save").addEventListener("click", async () => {
     const known = knownKeys();
     list = current.items.filter(i => !known.has(urlKey(i.url))).map(i => ({ ...i, title: i.title || defaultTitle(i.url), tags, savedFrom }));
   } else if (current.mode === "text"){
-    const text = $("#out").value.trim(); if (!text) return toast("담을 글이 없습니다.");
+    const text = $("#out").value.trim(); if (!text) return toast("저장할 글이 없습니다.");
     list = [{ type: fromImage ? "image" : "text", url: current.url, platform: current.url ? current.platform : (fromImage ? "스크린샷" : "직접 입력"), title: $("#title").value.trim() || firstSentence(text), text, tags, savedFrom }];
   }
   if (!list.length) return;
-  const btn = $("#save"); btn.disabled = true; btn.textContent = "담는 중…";
+  const btn = $("#save"); btn.disabled = true; btn.textContent = "저장하는 중…";
   try {
     const ids = await addItems(list);
-    toast(`${list.length}개를 담았습니다.`);
+    toast(`${list.length}개를 저장했습니다.`);
     setRaw("");
     if (sampleApi && $("#ai-on").checked) classify(ids.map((id, i) => ({ id, ...list[i] })));
-  } catch (e){ toast(e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다. 안 쓰는 항목을 지워 주세요." : "담지 못했습니다. 다시 눌러 주세요."); }
+  } catch (e){ toast(e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다. 안 쓰는 항목을 지워 주세요." : "저장하지 못했습니다. 다시 눌러 주세요."); }
   finally { btn.disabled = false; refreshDetect(); }
 });
 
@@ -824,10 +824,10 @@ async function importFiles(files){
   }
   if (guess) $("#import-from").value = guess;
   const box = $("#import-preview"); box.textContent = "";
-  box.append(el("span", { class: "note", text: found.length ? `새 링크 ${pending.length}개${dup ? ` · 이미 담긴 ${dup}개는 건너뜀` : ""}` : "이 파일에서 링크를 찾지 못했습니다." }));
+  box.append(el("span", { class: "note", text: found.length ? `새 링크 ${pending.length}개${dup ? ` · 이미 저장된 ${dup}개는 건너뜀` : ""}` : "이 파일에서 링크를 찾지 못했습니다." }));
   pending.slice(0, 80).forEach(i => box.append(el("div", { class: "d-item" }, el("span", { class: "kind k-" + i.type, text: TYPE_LABEL[i.type] }), el("span", { class: "stats", text: i.platform }), el("span", { class: "t", text: i.title }))));
   if (pending.length > 80) box.append(el("span", { class: "note", text: `…외 ${pending.length - 80}개` }));
-  $("#import-go").disabled = !pending.length; $("#import-go").textContent = pending.length ? `${pending.length}개 모두 담기` : "모두 담기";
+  $("#import-go").disabled = !pending.length; $("#import-go").textContent = pending.length ? `${pending.length}개 모두 저장하기` : "모두 저장하기";
   $("#import-note").textContent = "";
 }
 $("#import-go").addEventListener("click", async () => {
@@ -836,9 +836,9 @@ $("#import-go").addEventListener("click", async () => {
   const savedFrom = $("#import-from").value; const list = pending.map(p => ({ ...p, savedFrom }));
   try {
     await addItems(list, (d, n) => { $("i", prog).style.width = (d / n * 100) + "%"; $("#import-note").textContent = `${d} / ${n}`; });
-    toast(`${list.length}개를 담았습니다.`); pending = []; $("#import-preview").textContent = ""; $("#import-preview").append(el("span", { class: "note", text: `${list.length}개를 서재에 담았습니다. 아래에서 'AI로 분류'를 누르면 주제를 붙입니다.` }));
-    btn.textContent = "모두 담기";
-  } catch (e){ $("#import-note").textContent = e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다." : "일부를 담지 못했습니다. 다시 가져오면 빠진 것만 담습니다."; btn.disabled = false; }
+    toast(`${list.length}개를 저장했습니다.`); pending = []; $("#import-preview").textContent = ""; $("#import-preview").append(el("span", { class: "note", text: `${list.length}개를 저장했습니다. 아래 '저장한 목록'에서 'AI로 분류'를 누르면 주제를 붙입니다.` }));
+    btn.textContent = "모두 저장하기";
+  } catch (e){ $("#import-note").textContent = e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다." : "일부를 저장하지 못했습니다. 다시 가져오면 빠진 것만 저장합니다."; btn.disabled = false; }
   finally { setTimeout(() => { prog.hidden = true; $("i", prog).style.width = "0"; }, 800); }
 });
 
@@ -972,8 +972,8 @@ function render(){
   const untopiced = items.filter(i => !i.topic).length;
   $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
   if (!items.length){
-    list.append(el("div", { class: "empty" }, el("b", { text: "아직 담은 것이 없습니다." }), el("br"),
-      "위 '담기'에 링크나 글을 붙여넣거나, 크롬 북마크·유튜브·인스타 내보내기 파일을 가져오세요. 담은 것은 여기서 종류(영상·링크·글·이미지), 출처, 주제, 저장했던 곳별로 나눠 볼 수 있습니다."));
+    list.append(el("div", { class: "empty" }, el("b", { text: "아직 저장한 것이 없습니다." }), el("br"),
+      "위 '새로 저장하기'에 링크나 글을 붙여넣거나, 크롬 즐겨찾기·유튜브·구글 지도 내보내기 파일을 가져오세요. 저장한 것은 여기서 종류(영상·링크·글·이미지), 출처, 주제, 저장했던 곳별로 나눠 볼 수 있습니다."));
     return;
   }
   const vs = visible();
