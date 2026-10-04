@@ -152,6 +152,12 @@ aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:ca
 .card .desc{margin:0;font-size:13.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .card .sum{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
 .card .chips{display:flex;flex-wrap:wrap;gap:5px}
+.topicbox{display:inline-flex;align-items:center}
+.topicbox input{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px dashed transparent;border-radius:5px;padding:3px 7px;width:6.5em;min-width:0}
+.topicbox input:hover{border-color:var(--muted)}
+.topicbox input:focus{border-style:solid;border-color:var(--muted)}
+.topicbox input::placeholder{color:var(--muted);font-weight:500}
+.topicbox.empty input{background:var(--soft)}
 .chip{font:12px/1.2 var(--f-body);border-radius:5px;padding:3px 7px;background:var(--soft);color:var(--ink);border:0;cursor:pointer}
 .chip.topic{background:var(--mark);color:var(--mark-ink);font-weight:600}
 .chip.tag{background:transparent;color:var(--accent);padding:3px 2px;font-family:var(--f-mono)}
@@ -534,11 +540,42 @@ async function initStore(){
   col.onSnapshot(snap => { items = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.kind === "note").map(normalize); render(); },
     () => useLocal("계정 저장소에 연결하지 못해 이 브라우저에 저장합니다."));
 }
+/* ================= 주제 자동 붙이기 (키워드 규칙, AI 없이) ================= */
+// [주제, 낱말들, 사이트 주소들]. 제목·설명·내용·주소에서 가장 많이 맞는 주제를 고른다.
+const TOPIC_RULES = [
+  ["음식", ["맛집", "음식", "레시피", "요리", "카페", "커피", "베이커리", "빵집", "디저트", "식당", "술집", "와인", "브런치", "고기", "국수", "라멘", "초밥", "스시", "파스타", "피자", "치킨", "떡볶이", "밀키트", "반찬", "한식", "중식", "일식", "양식", "오마카세", "recipe", "restaurant", "cafe", "coffee", "food"], ["10000recipe.com", "mangoplate.com", "siksinhot.com", "diningcode.com", "catchtable.co.kr", "baemin.com"]],
+  ["여행", ["여행", "호텔", "숙소", "펜션", "리조트", "항공권", "비행기", "관광", "투어", "캠핑", "글램핑", "여행코스", "데이트 코스", "가볼만한", "명소", "해외여행", "국내여행", "해수욕장", "해변", "바닷가", "제주", "섬여행", "등산", "트레킹", "둘레길", "숙박", "1박2일", "2박3일", "3박4일", "일본", "도쿄", "오사카", "후쿠오카", "교토", "다낭", "방콕", "유럽", "travel", "trip", "hotel", "flight", "resort"], ["airbnb.", "booking.com", "agoda.com", "skyscanner.", "tripadvisor.", "yanolja.com", "goodchoice.kr", "myrealtrip.com", "klook.com", "trip.com", "interpark.com"]],
+  ["쇼핑", ["쇼핑", "최저가", "할인", "쿠폰", "특가", "구매", "주문", "장바구니", "언박싱", "shopping", "sale"], ["coupang.com", "11st.co.kr", "gmarket.co.kr", "auction.co.kr", "smartstore.naver.com", "shopping.naver.com", "musinsa.com", "ssg.com", "kurly.com", "amazon.", "aliexpress.", "29cm.co.kr", "ohou.se"]],
+  ["AI", [/(^|[^a-z])ai([^a-z]|$)/i, "인공지능", "chatgpt", /(^|[^a-z])gpt([^a-z]|$)/i, "claude", "llm", "머신러닝", "딥러닝", "프롬프트", "생성형", "gemini", "openai"], ["openai.com", "anthropic.com", "claude.ai", "huggingface.co"]],
+  ["개발", ["개발", "프로그래밍", "코딩", "자바스크립트", "javascript", "typescript", "파이썬", "python", "react", /(^|[^a-z])api([^a-z]|$)/i, "깃허브", "github", "서버", "프론트엔드", "백엔드", "데이터베이스", /(^|[^a-z])sql([^a-z]|$)/i, "알고리즘", "playwright", "selenium", "devops"], ["github.com", "stackoverflow.com", "velog.io", "dev.to", "developer.mozilla.org", "npmjs.com", "inflearn.com"]],
+  ["일·업무", [/(^|[^a-z])qa([^a-z]|$)/i, "테스트", "테스트케이스", "품질", "버그", "기획", "회의", "업무", "보고서", "엑셀", "노션", "생산성", "협업", "직장", "신입", "회사생활", "커리어", "이직", "면접", "jira", "notion"], ["notion.so", "atlassian.", "slack.com", "figma.com/file"]],
+  ["디자인", ["디자인", /(^|[^a-z])ui([^a-z]|$)/i, /(^|[^a-z])ux([^a-z]|$)/i, "피그마", "figma", "폰트", "일러스트", "로고", "타이포", "레퍼런스", "design"], ["behance.net", "dribbble.com", "pinterest.", "figma.com", "noonnu.cc"]],
+  ["공부", ["강의", "공부", "독서", "도서", "책 추천", "자격증", "영어", "외국어", "학습", "강좌", "클래스", "시험", "인강", "course", "lecture"], ["class101.net", "coursera.org", "udemy.com", "fastcampus.co.kr", "yes24.com", "aladin.co.kr", "kyobobook.co.kr", "ridibooks.com", "millie.co.kr"]],
+  ["건강·운동", ["운동", "헬스", "다이어트", "요가", "필라테스", "러닝", "달리기", "스트레칭", "건강", "병원", "영양제", "수면", "홈트", "workout", "fitness"], []],
+  ["재테크", ["주식", "투자", "재테크", "부동산", "금리", "비트코인", "가상자산", "경제", "적금", "예금", "연금", /(^|[^a-z])etf([^a-z]|$)/i, "청약", "절세", "배당"], ["finance.naver.com", "upbit.com", "bithumb.com", "investing.com"]],
+  ["육아", ["육아", "아기", "유아", "아이와", "키즈", "어린이", "임신", "출산", "이유식"], []],
+  ["생활", ["인테리어", "살림", "청소", "정리정돈", "수납", "가구", "이사", "생활꿀팁", "꿀팁", "세탁", "반려", "강아지", "고양이"], ["ohou.se"]],
+  ["문화·취미", ["영화", "드라마", "예능", "음악", "노래", "플레이리스트", "공연", "전시", "콘서트", "웹툰", "게임", "사진", "그림", "뮤지컬", "넷플릭스", "netflix", "movie", "music"], ["netflix.com", "melon.com", "spotify.com", "watcha.com", "interpark.com/ticket", "ticketlink.co.kr", "webtoon"]],
+  ["뉴스", ["뉴스", "기사", "속보", "news"], ["news.naver.com", "n.news.naver.com", "news.daum.net", "v.daum.net", "yna.co.kr", "chosun.com", "joongang.co.kr", "donga.com", "hani.co.kr", "khan.co.kr", "mk.co.kr", "hankyung.com", "bbc.", "cnn.com", "nytimes.com"]],
+];
+function ruleTopic(x){
+  const hay = [x.title, x.title, x.desc, (x.text || "").slice(0, 2000)].filter(Boolean).join("\n").toLowerCase().replace(/(네이버|다음|naver|daum)\s*카페/g, " ");
+  let href = ""; try { const u = new URL(x.url); href = (u.hostname.replace(/^www\.|^m\./, "") + u.pathname).toLowerCase(); } catch {}
+  let best = "", bestScore = 0;
+  for (const [topic, words, sites] of TOPIC_RULES){
+    let sc = 0;
+    for (const w of words) sc += w instanceof RegExp ? (w.test(hay) ? 1 : 0) : (hay.includes(w) ? 1 : 0);
+    if (href && sites.some(d => href.startsWith(d) || href.includes("." + d) || (d.endsWith(".") && href.startsWith(d)))) sc += 3;
+    if (sc > bestScore){ best = topic; bestScore = sc; }
+  }
+  if (!best && x.type === "place") best = "장소";
+  return best;
+}
 const knownKeys = () => new Set(items.filter(i => i.url).map(i => urlKey(i.url)));
 async function addItems(list, onStep){
   const now = Date.now(); let done = 0;
   const docs = list.map((x, i) => ({ kind: "note", type: x.type, url: x.url || "", platform: x.platform || "", title: x.title || "", text: x.text || "",
-    tags: x.tags || [], topic: x.topic || "", summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
+    tags: x.tags || [], topic: x.topic || ruleTopic(x), topicBy: x.topic ? (x.topicBy || "user") : "rule", summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
     image: x.image || "", desc: x.desc || "", pv: x.pv || 0,
     savedAt: x.savedAt || "", createdAt: new Date(now - i).toISOString() }));
   if (store === "db"){
@@ -899,7 +936,7 @@ async function classify(list){
         '\n\nJSON으로만 답하세요: {"items":[{"i":0,"topic":"","tags":[],"title":"","summary":""}]}', { modelTier: "quick" });
       for (const o of (r && Array.isArray(r.items) ? r.items : [])){
         const x = chunk[o.i]; if (!x || !x.id) continue;
-        const patch = { topic: String(o.topic || "미확인").slice(0, 20) };
+        const patch = { topic: String(o.topic || "미확인").slice(0, 20), topicBy: "ai" };
         const tags = [...new Set((x.tags || []).concat(Array.isArray(o.tags) ? o.tags.map(String) : []))].slice(0, 8); patch.tags = tags;
         if (o.title && (!x.title || x.title === defaultTitle(x.url || ""))) patch.title = String(o.title).slice(0, 120);
         if (o.summary && x.text) patch.summary = [String(o.summary)];
@@ -911,7 +948,7 @@ async function classify(list){
   } catch (e){ st.textContent = errMsg(e); st.className = "note warn"; if (e && e.code === "not_granted"){ $("#ai-classify").hidden = true; $("#ai-on-wrap").hidden = true; } }
   finally { classifying = false; render(); }
 }
-$("#ai-classify").addEventListener("click", () => { const todo = items.filter(i => !i.topic); if (!todo.length) return toast("모든 항목에 주제가 있습니다."); classify(todo.slice(0, 200)); });
+$("#ai-classify").addEventListener("click", () => { const todo = items.filter(i => !i.topic || i.topicBy === "rule"); if (!todo.length) return toast("모든 항목에 주제가 있습니다."); classify(todo.slice(0, 200)); });
 
 /* ================= 서재 ================= */
 const F = { type: null, platform: null, savedFrom: null, topic: null, tag: null };
@@ -972,6 +1009,19 @@ function srcField(n){
   inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); inp.blur(); } if (e.key === "Escape"){ inp.value = isDefault ? "" : n.platform; inp.blur(); } });
   return el("label", { class: "srcbox" }, "출처", inp);
 }
+// 카드 위에서 바로 주제를 고친다. 직접 고친 주제는 자동 규칙이 다시 바꾸지 않는다.
+function topicField(n){
+  const inp = el("input", { type: "text", list: "topic-all", "aria-label": "주제", placeholder: "주제 없음", title: "주제를 적거나 골라서 바꿀 수 있어요", autocomplete: "off" });
+  inp.value = n.topic || "";
+  const commit = async () => {
+    const v = inp.value.trim().slice(0, 20);
+    if (v === (n.topic || "")) return;
+    try { await updateItem(n.id, { topic: v, topicBy: "user" }); toast(v ? `주제를 '${v}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
+  };
+  inp.addEventListener("change", commit);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); inp.blur(); } if (e.key === "Escape"){ inp.value = n.topic || ""; inp.blur(); } });
+  return el("label", { class: "topicbox" + (n.topic ? "" : " empty") }, inp);
+}
 function card(n){
   const c = el("article", { class: "card" + (editing === n.id ? " editing" : "") });
   const href = safeHref(n.url);
@@ -986,7 +1036,7 @@ function card(n){
   if (n.summary.length) c.append(el("ul", { class: "sum" }, n.summary.map(s => el("li", { text: s }))));
   if (n.text){ c.append(hl(el("p", { class: "body" + (expanded.has(n.id) ? "" : " clamp") }), n.text, q)); }
   const chips = el("div", { class: "chips" });
-  if (n.topic) chips.append(el("button", { class: "chip topic", type: "button", text: n.topic, title: "이 주제만 보기", onclick: () => { F.topic = n.topic; render(); } }));
+  chips.append(topicField(n));
   n.tags.forEach(t => chips.append(el("button", { class: "chip tag", type: "button", text: "#" + t, onclick: () => { F.tag = t; render(); } })));
   if (chips.children.length) c.append(chips);
   const act = el("div", { class: "actions" });
@@ -1021,9 +1071,11 @@ function editForm(n){
 }
 function render(){
   renderFilters();
+  let tl = $("#topic-all"); if (!tl){ tl = el("datalist", { id: "topic-all" }); document.body.append(tl); }
+  tl.textContent = ""; [...new Set(TOPIC_RULES.map(r => r[0]).concat(items.map(i => i.topic)).filter(Boolean))].forEach(t => tl.append(el("option", { value: t })));
   const list = $("#list"); list.textContent = "";
   $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
-  const untopiced = items.filter(i => !i.topic).length;
+  const untopiced = items.filter(i => !i.topic || i.topicBy === "rule").length;
   $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
   const noPv = CAN_PREVIEW ? needPreview().length : 0;
   $("#fill-preview").hidden = !noPv || pvBusy; $("#fill-preview").textContent = `썸네일 채우기 (${noPv})`;
@@ -1114,6 +1166,7 @@ async function fillPreviews(ids){
         if (p.image || p.desc || patch.title) got++;
       }
       const cur = items.find(i => i.id === n.id);
+      if (cur && (!cur.topic || cur.topicBy === "rule")){ const t = ruleTopic({ ...cur, ...patch }); if (t && t !== cur.topic){ patch.topic = t; patch.topicBy = "rule"; } }
       if (cur){
         if (store === "db") await col.doc(n.id).update(patch).catch(() => {});
         else { Object.assign(cur, patch); }
@@ -1132,7 +1185,7 @@ $("#fill-preview").addEventListener("click", () => fillPreviews());
 
 // 내모음으로 보내기: 북마크바 버튼이 지금 화면의 글을 #nm= 뒤에 담아 웹 버전을 연다
 const NM_HOME = "https://naemoeum.vercel.app/";
-const BOOKMARKLET = "javascript:(()=>{try{const s=String(getSelection()||'').trim(),t=(s||(document.body&&document.body.innerText)||'').slice(0,30000),d={v:1,u:location.href,ti:document.title,t:t,sel:!!s},w=window.open('" + NM_HOME + "#nm='+encodeURIComponent(JSON.stringify(d)),'_blank');if(!w)alert('팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.')}catch(e){alert('내모음으로 보내지 못했어요: '+e.message)}})()";
+const BOOKMARKLET = "javascript:(()=>{try{const s=String(getSelection()||'').trim(),m={},X=/^(nid|help|mail|calendar|contact|mybox|memo|talk|note|keep|www|m|blog\\.editor|cafe\\.editor|section\\.blog|ssl|static|common)\\.naver\\.com$/;if(!s)document.querySelectorAll('a[href^=http]').forEach(a=>{let h;try{h=new URL(a.href)}catch(e){return}if(h.host===location.host||X.test(h.hostname)||h.pathname.length<2)return;const t=(a.innerText||a.title||'').trim().split('\\n')[0].slice(0,160);if(!m[a.href]||t.length>m[a.href].length)m[a.href]=t});const l=Object.entries(m).slice(0,2000).map(([u,t])=>[t,u]),t=(s||(document.body&&document.body.innerText)||'').slice(0,l.length>1?2000:30000),d={v:2,u:location.href,ti:document.title,t:t,sel:!!s,l:l},w=window.open('" + NM_HOME + "#nm='+encodeURIComponent(JSON.stringify(d)),'_blank');if(!w)alert('팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.')}catch(e){alert('내모음으로 보내지 못했어요: '+e.message)}})()";
 $("#bm-link").setAttribute("href", BOOKMARKLET);
 $("#bm-link").addEventListener("click", e => { e.preventDefault(); toast("누르지 말고 북마크바로 끌어다 놓으세요."); });
 $("#bm-copy").addEventListener("click", async () => {
@@ -1149,21 +1202,31 @@ function takeSent(){
   history.replaceState(null, "", location.pathname + location.search);
   let d; try { d = JSON.parse(decodeURIComponent(m[1])); } catch { return toast("보낸 내용을 읽지 못했습니다."); }
   let text = String(d.t || "").trim(), url = String(d.u || "");
+  // 링크가 2개 이상 보이는 화면(Keep 목록 등)은 링크 목록으로 가져온다
+  const links = !d.sel && Array.isArray(d.l) ? d.l.filter(x => Array.isArray(x) && /^https?:/.test(x[1] || "")) : [];
+  const asLinks = links.length >= 2;
+  if (asLinks) text = links.map(([t, u]) => (t ? t.replace(/https?:\/\/\S+/g, "").trim() + "\n" : "") + u).join("\n\n");
   if (!text) return toast("그 화면에서 가져올 글이 없었습니다.");
   showTab("paste"); setRaw(text);
   let host = ""; try { host = new URL(url).hostname; } catch {}
   // 보낸 화면 주소는 글의 출처로만 쓴다 (Keep 주소는 메모마다 같아서 빼고 이름만 남긴다)
-  if (/^https?:/.test(url)){ sentUrl = /^keep\.naver\.com$/.test(host) ? "" : cleanUrl(url); $("#src").value = platformOf(url); $("#src").dataset.touched = "1"; }
+  if (/^https?:/.test(url) && !asLinks){ sentUrl = /^keep\.naver\.com$/.test(host) ? "" : cleanUrl(url); $("#src").value = platformOf(url); $("#src").dataset.touched = "1"; }
   const hit = FROM_HOST.find(([re]) => re.test(host));
   if (hit && !(hit[1] === "구글 지도" && !/\/maps/.test(url))){ $("#from").value = hit[1]; $("#from").dataset.touched = "1"; }
   refreshDetect();
   if (current.mode === "text" && d.ti && !$("#title").value && !/keep/i.test(host)) $("#title").value = String(d.ti).slice(0, 160);
   $("#confirm").scrollIntoView({ block: "start" });
+  if (asLinks){ toast(`그 화면의 링크 ${links.length}개를 가져왔습니다. 확인하고 저장하기를 누르세요.`); return; }
   toast(d.sel ? "선택한 글을 가져왔습니다. 확인하고 저장하기를 누르세요." : "그 화면의 글을 가져왔습니다. 확인하고 저장하기를 누르세요.");
 }
 render();
+function ruleTopicsForOld(){
+  if (store !== "local") return;
+  let changed = 0, n = 0; items.forEach(i => { if (!i.topic && !i.topicBy){ const t = ruleTopic(i); i.topicBy = "rule"; changed++; if (t){ i.topic = t; n++; } } });
+  if (changed) local.write(items); if (n) render();
+}
 takeSent();
-initStore().catch(() => useLocal()).finally(() => { if ($("#raw").value.trim()) refreshDetect(); });
+initStore().catch(() => useLocal()).finally(() => { ruleTopicsForOld(); if ($("#raw").value.trim()) refreshDetect(); });
 })();
 </script>
 
