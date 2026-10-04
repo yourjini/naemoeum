@@ -178,6 +178,8 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .card .foot{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:4px;border-top:1px solid var(--line)}
 .card .when{font:11.5px var(--f-mono);color:var(--muted)}
 .card .actions{display:flex;flex-wrap:wrap;gap:0}
+.card .actions .icon-btn{padding:5px 6px;color:var(--muted)}
+.card .actions .icon-btn:hover{color:var(--ink)}
 .card .actions .btn{font-size:13px;padding:4px 7px}
 .card.editing{grid-column:1/-1}
 .edit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
@@ -1145,8 +1147,11 @@ function card(n){
   const act = el("div", { class: "actions" });
   const mk = (label, fn, cls) => act.append(el("button", { type: "button", class: "btn ghost" + (cls ? " " + cls : ""), text: label, onclick: fn }));
   if (n.text && (n.text.length > 180 || n.text.split("\n").length > 4)) mk(expanded.has(n.id) ? "접기" : "펼치기", () => { expanded.has(n.id) ? expanded.delete(n.id) : expanded.add(n.id); render(); });
-  mk("복사", () => copyText([n.title, n.url, n.text].filter(Boolean).join("\n")));
-  mk("편집", () => { editing = n.id; render(); });
+  if (!selecting){
+    const pen = el("button", { type: "button", class: "btn ghost icon-btn", "aria-label": "편집", title: "편집", onclick: () => { editing = n.id; render(); } });
+    pen.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    act.append(pen);
+  }
   c.append(el("div", { class: "foot" }, el("span", { class: "when", text: `${n.savedFrom} · ${fmtDate(n.savedAt || n.createdAt)}` }), act));
   return c;
 }
