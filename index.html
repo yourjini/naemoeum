@@ -148,6 +148,8 @@ aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:ca
 .card .title a:hover{border-color:var(--accent);color:var(--accent)}
 .card .body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;margin:0;color:var(--ink)}
 .card .body.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.card .thumb{display:block;width:100%;aspect-ratio:1.91/1;object-fit:cover;border-radius:6px;background:var(--soft);border:1px solid var(--line)}
+.card .desc{margin:0;font-size:13.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .card .sum{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
 .card .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{font:12px/1.2 var(--f-body);border-radius:5px;padding:3px 7px;background:var(--soft);color:var(--ink);border:0;cursor:pointer}
@@ -323,6 +325,7 @@ https://youtu.be/dQw4w9WgXcQ
         <div class="row between">
           <h2 id="h-lib">저장한 목록 <span class="stats" id="count"></span></h2>
           <div class="row">
+            <button class="btn" id="fill-preview" type="button" hidden>썸네일 채우기</button>
             <button class="btn" id="ai-classify" type="button" hidden>AI로 분류</button>
             <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
             <button class="btn ghost" id="dl-all" type="button" hidden>파일로 받기</button>
@@ -536,6 +539,7 @@ async function addItems(list, onStep){
   const now = Date.now(); let done = 0;
   const docs = list.map((x, i) => ({ kind: "note", type: x.type, url: x.url || "", platform: x.platform || "", title: x.title || "", text: x.text || "",
     tags: x.tags || [], topic: x.topic || "", summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
+    image: x.image || "", desc: x.desc || "", pv: x.pv || 0,
     savedAt: x.savedAt || "", createdAt: new Date(now - i).toISOString() }));
   if (store === "db"){
     // 동시에 4개씩 저장 (문서가 서로 달라 겹치지 않음)
@@ -631,6 +635,7 @@ $("#save").addEventListener("click", async () => {
   try {
     const ids = await addItems(list);
     toast(`${list.length}개를 저장했습니다.`);
+    if (CAN_PREVIEW && list.length <= 30) fillPreviews(ids);
     setRaw("");
     if (sampleApi && $("#ai-on").checked) classify(ids.map((id, i) => ({ id, ...list[i] })));
   } catch (e){ toast(e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다. 안 쓰는 항목을 지워 주세요." : "저장하지 못했습니다. 다시 눌러 주세요."); }
@@ -917,7 +922,7 @@ $("#sort").addEventListener("change", e => { sort = e.target.value; render(); })
 const valOf = (i, k) => k === "tag" ? i.tags : [k === "topic" ? (i.topic || "분류 전") : i[k]];
 function matches(i, skip){
   for (const k of Object.keys(F)){ if (k === skip || !F[k]) continue; if (!valOf(i, k).includes(F[k])) return false; }
-  if (q){ const ql = q.toLowerCase(); if (![i.title, i.text, i.url, i.platform, i.topic, i.savedFrom, i.tags.join(" ")].join(" ").toLowerCase().includes(ql)) return false; }
+  if (q){ const ql = q.toLowerCase(); if (![i.title, i.text, i.desc, i.url, i.platform, i.topic, i.savedFrom, i.tags.join(" ")].join(" ").toLowerCase().includes(ql)) return false; }
   return true;
 }
 function countsFor(k){
@@ -975,6 +980,9 @@ function card(n){
   if (href) title.append(hl(el("a", { href, target: "_blank", rel: "noopener" }), n.title || defaultTitle(n.url), q)); else hl(title, n.title || firstSentence(n.text || ""), q);
   c.append(title);
   if (editing === n.id){ c.append(editForm(n)); return c; }
+  const thumb = safeHref(n.image);
+  if (thumb){ const img = el("img", { class: "thumb", src: thumb, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); img.addEventListener("error", () => img.remove()); c.insertBefore(href ? el("a", { href, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" }, img) : img, title); }
+  if (n.desc && !n.text) c.append(hl(el("p", { class: "desc" }), n.desc, q));
   if (n.summary.length) c.append(el("ul", { class: "sum" }, n.summary.map(s => el("li", { text: s }))));
   if (n.text){ c.append(hl(el("p", { class: "body" + (expanded.has(n.id) ? "" : " clamp") }), n.text, q)); }
   const chips = el("div", { class: "chips" });
@@ -1017,6 +1025,8 @@ function render(){
   $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
   const untopiced = items.filter(i => !i.topic).length;
   $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
+  const noPv = CAN_PREVIEW ? needPreview().length : 0;
+  $("#fill-preview").hidden = !noPv || pvBusy; $("#fill-preview").textContent = `썸네일 채우기 (${noPv})`;
   if (!items.length){
     list.append(el("div", { class: "empty" }, el("b", { text: "아직 저장한 것이 없습니다." }), el("br"),
       "위 '새로 저장하기'에 링크나 글을 붙여넣거나, 크롬 즐겨찾기·유튜브·구글 지도 내보내기 파일을 가져오세요. 저장한 것은 여기서 종류(영상·링크·글·이미지), 출처, 주제, 저장했던 곳별로 나눠 볼 수 있습니다."));
@@ -1072,6 +1082,54 @@ $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.l
     });
   }).catch(() => {});
 })();
+/* ================= 링크 미리보기 (웹 버전의 /api/preview) ================= */
+// 저장한 링크의 제목·썸네일·사이트 설명을 채운다. 한 번 시도한 항목은 pv=1로 표시해 다시 묻지 않는다.
+const CAN_PREVIEW = /(^|\.)vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+let pvBusy = false;
+const needPreview = () => items.filter(i => i.url && /^https?:/.test(i.url) && !i.pv);
+const isPlainTitle = n => !n.title || n.title === n.url || n.title === defaultTitle(n.url);
+async function fetchPreview(url){
+  const r = await fetch("/api/preview?url=" + encodeURIComponent(url));
+  if (!r.ok) throw new Error("preview " + r.status);
+  return r.json();
+}
+async function fillPreviews(ids){
+  if (!CAN_PREVIEW || pvBusy) return;
+  const want = ids ? new Set(ids) : null;
+  const todo = needPreview().filter(i => !want || want.has(i.id));
+  if (!todo.length) return;
+  pvBusy = true; render();
+  let idx = 0, done = 0, got = 0; const many = todo.length > 3;
+  const step = async () => {
+    while (idx < todo.length){
+      const n = todo[idx++]; let p = null;
+      try { p = await fetchPreview(n.url); } catch {}
+      const patch = { pv: 1 };
+      if (p){
+        if (p.image) patch.image = p.image;
+        if (p.desc) patch.desc = p.desc;
+        if (p.title && isPlainTitle(n) && !/^\s*(로그인|login|log in|sign in|instagram)\s*$/i.test(p.title)) patch.title = p.title;
+        // 출처가 주소 그대로(도메인)일 때만 사이트 이름으로 바꾼다
+        if (p.site && n.platform === hostOf(n.url)) patch.platform = p.site;
+        if (p.image || p.desc || patch.title) got++;
+      }
+      const cur = items.find(i => i.id === n.id);
+      if (cur){
+        if (store === "db") await col.doc(n.id).update(patch).catch(() => {});
+        else { Object.assign(cur, patch); }
+      }
+      done++; if (many) $("#fill-preview").textContent = `썸네일 채우는 중 ${done}/${todo.length}`;
+      if (store !== "db" && done % 10 === 0){ local.write(items); render(); }
+    }
+  };
+  try { await Promise.all([step(), step(), step()]); }
+  finally {
+    pvBusy = false; if (store !== "db") local.write(items); render();
+    if (many) toast(`${todo.length}개 중 ${got}개의 미리보기를 채웠습니다.`);
+  }
+}
+$("#fill-preview").addEventListener("click", () => fillPreviews());
+
 // 내모음으로 보내기: 북마크바 버튼이 지금 화면의 글을 #nm= 뒤에 담아 웹 버전을 연다
 const NM_HOME = "https://naemoeum.vercel.app/";
 const BOOKMARKLET = "javascript:(()=>{try{const s=String(getSelection()||'').trim(),t=(s||(document.body&&document.body.innerText)||'').slice(0,30000),d={v:1,u:location.href,ti:document.title,t:t,sel:!!s},w=window.open('" + NM_HOME + "#nm='+encodeURIComponent(JSON.stringify(d)),'_blank');if(!w)alert('팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.')}catch(e){alert('내모음으로 보내지 못했어요: '+e.message)}})()";
