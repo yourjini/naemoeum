@@ -194,6 +194,7 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .tm-list button:hover{background:var(--soft)}
 .tm-list button.on{background:var(--mark);color:var(--mark-ink);font-weight:600}
 .tm-list button.muted{color:var(--muted)}
+.topic-pick{width:100%;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font:15px var(--f-body);color:var(--ink);cursor:pointer}
 .tm-new{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:6px}
 .tm-new input{flex:1 1 auto;min-width:0;padding:5px 8px;font-size:14px}
 .tm-new .btn{flex:none;white-space:nowrap;padding:5px 10px}
@@ -1376,16 +1377,18 @@ async function setTopic(n, t){
 }
 let topicMenu = null;
 function closeTopicMenu(){ if (topicMenu){ topicMenu.remove(); topicMenu = null; } }
-function openTopicMenu(anchor, n){
+function openTopicMenu(anchor, n, onPick){
   if (topicMenu && topicMenu._for === n.id){ closeTopicMenu(); return; }
+  const cur = onPick ? onPick.current() : (n.topic || "");
+  const pick = t => { if (onPick){ closeTopicMenu(); onPick(t.trim().slice(0, 20)); } else setTopic(n, t); };
   closeTopicMenu();
   const m = el("div", { class: "topic-menu", role: "menu" }); m._for = n.id;
   const list = el("div", { class: "tm-list" });
-  allTopics().forEach(t => list.append(el("button", { type: "button", role: "menuitem", class: t === n.topic ? "on" : "", text: t, onclick: () => setTopic(n, t) })));
-  if (n.topic) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => setTopic(n, "") }));
+  allTopics().forEach(t => list.append(el("button", { type: "button", role: "menuitem", class: t === cur ? "on" : "", text: t, onclick: () => pick(t) })));
+  if (cur) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("") }));
   const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
   const form = el("form", { class: "tm-new" }, inp, el("button", { type: "submit", class: "btn", text: "추가" }));
-  form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) setTopic(n, inp.value); });
+  form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) pick(inp.value); });
   m.append(list, form); m.addEventListener("click", e => e.stopPropagation());
   document.body.append(m); topicMenu = m;
   const r = anchor.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
@@ -1450,17 +1453,21 @@ function editForm(n){
   const field = (label, input) => el("label", {}, label, input);
   const iTitle = el("input", { type: "text", id: "e-title", value: n.title || "" });
   const iUrl = el("input", { type: "text", id: "e-url", value: n.url || "" });
-  const iTopic = el("input", { type: "text", id: "e-topic", value: n.topic || "", list: "topic-list" });
+  let topicVal = n.topic || "";
+  const iTopic = el("button", { type: "button", id: "e-topic", class: "topic-pick", text: (topicVal || NO_TOPIC) + " ▾" });
+  const pickTopic = t => { topicVal = t; iTopic.textContent = (t || NO_TOPIC) + " ▾"; };
+  pickTopic.current = () => topicVal;
+  iTopic.addEventListener("click", e => { e.stopPropagation(); openTopicMenu(iTopic, n, pickTopic); });
   const iTags = el("input", { type: "text", id: "e-tags", value: n.tags.join(", ") });
   const iFrom = el("select", { id: "e-from" }); fillSelect(iFrom, n.savedFrom); if (!FROM_OPTIONS.includes(n.savedFrom)) iFrom.append(el("option", { value: n.savedFrom, text: n.savedFrom, selected: true }));
   const iType = el("select", { id: "e-type" }); Object.entries(TYPE_LABEL).forEach(([v, l]) => iType.append(el("option", { value: v, text: l, selected: v === n.type })));
   const iText = el("textarea", { id: "e-text", rows: "5" }); iText.value = n.text || "";
-  const dl = el("datalist", { id: "topic-list" }, [...new Set(items.map(i => i.topic).filter(Boolean))].map(t => el("option", { value: t })));
-  f.append(el("div", { class: "edit-grid" }, field("제목", iTitle), field("주소", iUrl), field("주제", iTopic), field("태그 (쉼표)", iTags), field("저장했던 곳", iFrom), field("종류", iType)), dl, field("내용·메모", iText));
+  f.append(el("div", { class: "edit-grid" }, field("제목", iTitle), field("주소", iUrl), field("주제", iTopic), field("태그 (쉼표)", iTags), field("저장했던 곳", iFrom), field("종류", iType)), field("내용·메모", iText));
   f.append(el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", text: "저장" }), el("button", { class: "btn ghost", type: "button", text: "취소", onclick: () => { editing = null; render(); } })));
   f.addEventListener("submit", async e => {
     e.preventDefault(); const url = iUrl.value.trim() ? cleanUrl(iUrl.value) : "";
-    const patch = { title: iTitle.value.trim(), url, platform: url ? platformOf(url) : n.platform, topic: iTopic.value.trim(), tags: parseTags(iTags.value), savedFrom: iFrom.value, type: iType.value, text: iText.value.trim() };
+    const patch = { title: iTitle.value.trim(), url, platform: url ? platformOf(url) : n.platform, ...(topicVal !== (n.topic || "") ? { topic: topicVal, sub: topicVal ? ruleSub(topicVal, n) : "", topicBy: "user" } : {}), tags: parseTags(iTags.value), savedFrom: iFrom.value, type: iType.value, text: iText.value.trim() };
+    if (patch.topic) noteTopicUse(patch.topic);
     try { await updateItem(n.id, patch); editing = null; render(); toast("고쳤습니다."); } catch { toast("저장하지 못했습니다."); }
   });
   return f;
