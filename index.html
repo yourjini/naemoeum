@@ -753,6 +753,15 @@ const SUB_RULES = {
 };
 const RULE_V = 3;
 const STRONG = new Set(["스트레칭", "마사지"]);
+// 사용자가 지우거나 이름을 바꾼 기본 주제: 새로 저장하는 항목에도 그대로 따른다 (이 브라우저에 기억)
+const TOPIC_PREF_KEY = "naemoeum.topicPrefs.v1";
+const topicPrefs = (() => { try { const o = JSON.parse(localStorage.getItem(TOPIC_PREF_KEY) || "{}"); return { drop: o.drop || [], rename: o.rename || {} }; } catch { return { drop: [], rename: {} }; } })();
+const saveTopicPrefs = () => { try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {} };
+const RULE_NAMES = new Set(TOPIC_RULES.map(r => r[0]));
+function ruleName(t){ const seen = new Set(); while (topicPrefs.rename[t] && !seen.has(t)){ seen.add(t); t = topicPrefs.rename[t]; } return topicPrefs.drop.includes(t) ? "" : t; }
+function noteTopicRename(from, to){ for (const k of Object.keys(topicPrefs.rename)) if (topicPrefs.rename[k] === from) topicPrefs.rename[k] = to; if (RULE_NAMES.has(from)) topicPrefs.rename[from] = to; topicPrefs.drop = topicPrefs.drop.filter(x => x !== to); saveTopicPrefs(); }
+function noteTopicDrop(t){ if (!topicPrefs.drop.includes(t) && (RULE_NAMES.has(t) || Object.values(topicPrefs.rename).includes(t))){ topicPrefs.drop.push(t); saveTopicPrefs(); } }
+function noteTopicUse(t){ if (t && topicPrefs.drop.includes(t)){ topicPrefs.drop = topicPrefs.drop.filter(x => x !== t); saveTopicPrefs(); } }
 function ruleHay(x){ return [x.title, x.title, x.desc, (x.tags || []).join(" "), (x.text || "").slice(0, 2000)].filter(Boolean).join("\n").toLowerCase().replace(/(네이버|다음|naver|daum)\s*카페/g, " "); }
 const hit = (w, hay) => w instanceof RegExp ? w.test(hay) : hay.includes(w);
 function ruleTopic(x){
@@ -767,6 +776,7 @@ function ruleTopic(x){
     if (sc && STRONG.has(topic)) sc += 2;
     if (sc > bestScore){ best = topic; bestScore = sc; }
   }
+  best = best ? ruleName(best) : best;
   if (!best && x.type === "place") best = "장소";
   return best;
 }
@@ -1213,13 +1223,13 @@ function topicEditRow(t){
   const del = el("button", { type: "button", class: "btn ghost danger", text: topicDelArmed ? `${ids.length}개를 주제 없음으로` : "지우기" });
   del.addEventListener("click", async () => {
     if (!topicDelArmed){ topicDelArmed = true; del.textContent = `${ids.length}개를 주제 없음으로`; return; }
-    try { await updateMany(ids, { topic: "", sub: "", topicBy: "user" }); if (F.topic === t){ F.topic = null; F.sub = null; } toast("주제를 지웠습니다."); } catch { toast("지우지 못했습니다."); } done();
+    try { await updateMany(ids, { topic: "", sub: "", topicBy: "user" }); noteTopicDrop(t); if (F.topic === t){ F.topic = null; F.sub = null; } toast("주제를 지웠습니다."); } catch { toast("지우지 못했습니다."); } done();
   });
   const form = el("form", { class: "t-editrow" }, inp, el("div", { class: "row" }, el("button", { type: "submit", class: "btn", text: "저장" }), del, el("button", { type: "button", class: "btn ghost", text: "취소", onclick: done })));
   form.addEventListener("submit", async e => {
     e.preventDefault(); const v = inp.value.trim().slice(0, 20);
     if (!v || v === t) return done();
-    try { await updateMany(ids, { topic: v, topicBy: "user" }); if (F.topic === t) F.topic = v; toast(`'${v}'(으)로 바꿨습니다.`); } catch { toast("바꾸지 못했습니다."); } done();
+    try { await updateMany(ids, { topic: v, topicBy: "user" }); noteTopicRename(t, v); if (F.topic === t) F.topic = v; toast(`'${v}'(으)로 바꿨습니다.`); } catch { toast("바꾸지 못했습니다."); } done();
   });
   setTimeout(() => inp.focus(), 0);
   return el("li", {}, form);
@@ -1343,10 +1353,10 @@ function topicField(n){
 function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
   const used = [...m.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  return used.concat(TOPIC_RULES.map(r => r[0]).filter(t => !m.has(t)));
+  return used.concat([...new Set(TOPIC_RULES.map(r => ruleName(r[0])))].filter(t => t && !m.has(t)));
 }
 async function setTopic(n, t){
-  closeTopicMenu(); t = t.trim().slice(0, 20);
+  closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
   if (t === (n.topic || "")) return;
   try { await updateItem(n.id, { topic: t, sub: t ? ruleSub(t, n) : "", topicBy: "user" }); toast(t ? `'${t}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
 }
