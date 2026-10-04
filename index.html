@@ -194,13 +194,14 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .topicbtn{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px solid transparent;border-radius:5px;padding:3px 7px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .topicbtn:hover{border-color:var(--muted)}
 .topicbtn.empty{background:var(--soft);color:var(--muted);font-weight:500}
-.topic-menu{position:fixed;z-index:50;background:var(--sheet);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:6px;width:220px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;gap:6px}
-.tm-list{display:flex;flex-direction:column;max-height:260px;overflow-y:auto}
+.topic-menu{position:fixed;z-index:50;background:var(--sheet);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:6px;width:240px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;gap:6px}
+.tm-list{display:flex;flex-direction:column;max-height:min(60vh,440px);overflow-y:auto;position:relative}
 .tm-list button{border:0;background:transparent;color:var(--ink);font:14px var(--f-body);text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
 .tm-list button:hover{background:var(--soft)}
 .tm-list button.on{background:var(--mark);color:var(--mark-ink);font-weight:600}
 .tm-list button.muted{color:var(--muted)}
-.tm-list button.tm-sub{padding-left:22px;font-size:13.5px;color:var(--muted)}
+.tm-list button.tm-sub{padding-left:18px;font-size:13.5px}
+.tm-list .tm-p{color:var(--muted)}
 .topic-pick{width:100%;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font:15px var(--f-body);color:var(--ink);cursor:pointer}
 .tm-new{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:6px}
 .tm-new input{flex:1 1 auto;min-width:0;padding:5px 8px;font-size:14px}
@@ -1519,7 +1520,7 @@ function openTopicMenu(anchor, n, onPick){
   const subs = subsByTopic();
   allTopics().forEach(t => {
     list.append(el("button", { type: "button", role: "menuitem", class: t === cur && !curSub ? "on" : "", text: t, onclick: () => pick(t, "") }));
-    if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), text: sb, onclick: () => pick(t, sb) })));
+    if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), onclick: () => pick(t, sb) }, el("span", { class: "tm-p", text: t + " › " }), sb)));
   });
   if (cur || (onPick && onPick.allowNone)) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("", "") }));
   const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
@@ -1530,6 +1531,7 @@ function openTopicMenu(anchor, n, onPick){
   const r = anchor.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
   const top = r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4;
   m.style.top = top + "px"; m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  const on = list.querySelector(".on"); if (on) list.scrollTop = on.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2; // 지금 주제가 보이게
 }
 document.addEventListener("click", closeTopicMenu);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeTopicMenu(); });
