@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>내모음</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f3f5f8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Myeongjo:wght@700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -37,6 +42,7 @@ body{background:var(--paper);color:var(--ink);font:15px/1.65 var(--f-body);paddi
 .wrap{max-width:1240px;margin:0 auto;padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
 header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
 h1{font:800 34px/1.1 var(--f-display);margin:0;letter-spacing:-.01em}
+h1 .logo{width:1.15em;height:1.15em;vertical-align:-.17em;margin-right:.3em}
 h1 .hl{background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .tagline{color:var(--muted);margin:0;font-size:14px}
 section.panel{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
@@ -255,7 +261,7 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
 
 <div class="wrap">
   <header class="top">
-    <h1><span class="hl">내모음</span></h1>
+    <h1><img class="logo" src="/icon.svg" alt=""><span class="hl">내모음</span></h1>
     <nav class="tabs views" aria-label="화면">
       <button id="view-list" type="button" aria-pressed="true">목록</button>
       <button id="view-save" type="button" aria-pressed="false">＋ 저장하기</button>
