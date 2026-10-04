@@ -97,6 +97,9 @@ details.opts[open] summary{margin-bottom:8px}
 .pill{display:inline-block;font:500 11px/1 var(--f-mono);padding:4px 7px;border-radius:999px;background:var(--mark);color:var(--mark-ink);letter-spacing:.03em}
 .note{font-size:13px;color:var(--muted);margin:0}
 .note.warn{color:var(--warn)}
+.account{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.account input{flex:1 1 200px;min-width:0}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;font:inherit;cursor:pointer}
 
 /* 감지 미리보기 */
 .detect{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:10px 12px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
@@ -367,6 +370,11 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
         </div>
         <div class="active-filters" id="active-filters" hidden></div>
         <p class="note" id="store-note">저장소에 연결하는 중…</p>
+        <form class="account" id="acc-form" hidden>
+          <input type="email" id="acc-email" placeholder="이메일" autocomplete="email" required aria-label="로그인할 이메일">
+          <button class="btn" id="acc-login" type="submit">로그인 링크 받기</button>
+        </form>
+        <div class="account" id="move-box" hidden><span class="note" id="move-text"></span><button class="btn" id="move-go" type="button">계정으로 옮기기</button></div>
         <p class="note" id="ai-status" hidden></p>
         <div id="list"></div>
       </div>
@@ -377,6 +385,7 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
 (() => {
 const $ = (s, el = document) => el.querySelector(s);
@@ -551,7 +560,7 @@ function normalize(d){
 async function waitClaude(){ for (let i = 0; i < 15 && !(window.claude && window.claude.use); i++) await new Promise(r => setTimeout(r, 100)); return window.claude && window.claude.use ? window.claude : null; }
 function useLocal(msg){ store = "local"; items = local.read().map(normalize); $("#store-note").textContent = msg || "이 브라우저에만 저장됩니다. 다른 기기에서는 보이지 않습니다."; render(); }
 async function initStore(){
-  const c = await waitClaude(); if (!c){ useLocal(); return; }
+  const c = await waitClaude(); if (!c){ if (!(await initCloud())) useLocal(); return; }
   const [db, user] = await Promise.all([c.use("db").catch(() => null), c.use("user").catch(() => null)]);
   const uid = user ? await user.id().catch(() => null) : null;
   if (!db || !uid){ useLocal(); return; }
@@ -559,6 +568,100 @@ async function initStore(){
   $("#store-note").textContent = "내 계정에 저장됩니다. 다른 사람에게는 보이지 않습니다.";
   col.onSnapshot(snap => { items = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.kind === "note").map(normalize); render(); },
     () => useLocal("계정 저장소에 연결하지 못해 이 브라우저에 저장합니다."));
+}
+
+/* ----- 온라인 저장소 (Supabase): 이메일로 로그인하면 어느 기기에서나 같은 목록 ----- */
+// 설정은 supabase-config.json 의 url, key (공개용 키). 비어 있으면 예전처럼 이 브라우저에만 저장한다.
+let sb = null, sbUser = null, sbLoadedAt = 0;
+const SB_CHUNK = 500;
+const plain = x => { const { id, ...d } = x; return d; };
+async function initCloud(){
+  if (!window.supabase) return false;
+  const cfg = await fetch("supabase-config.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!cfg || !cfg.url || !cfg.key) return false;
+  sb = window.supabase.createClient(cfg.url, cfg.key);
+  // 처음 열 때(INITIAL_SESSION), 메일 링크로 돌아왔을 때, 로그아웃할 때 모두 여기로 온다
+  sb.auth.onAuthStateChange((ev, session) => {
+    const u = session && session.user;
+    if (u){ if (!sbUser || sbUser.id !== u.id){ sbUser = u; setTimeout(() => useCloud(u), 0); } }
+    else if (sbUser || ev === "INITIAL_SESSION"){ sbUser = null; setTimeout(showLogin, 0); }
+  });
+  return true;
+}
+function showLogin(){
+  useLocal("이 브라우저에만 저장됩니다. 로그인하면 다른 기기에서도 같은 목록이 보입니다.");
+  $("#acc-form").hidden = false; $("#move-box").hidden = true;
+}
+$("#acc-form").addEventListener("submit", async e => {
+  e.preventDefault(); const email = $("#acc-email").value.trim(); if (!email || !sb) return;
+  $("#acc-login").disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  $("#acc-login").disabled = false;
+  if (error) toast(/rate|seconds/i.test(error.message) ? "잠시 뒤에 다시 눌러 주세요." : "로그인 메일을 보내지 못했습니다.");
+  else { toast("메일함의 로그인 링크를 눌러 주세요."); $("#store-note").textContent = `${email}로 로그인 링크를 보냈습니다. 메일의 링크를 이 브라우저에서 열어 주세요.`; }
+});
+async function sbLoadAll(){
+  const all = [];
+  for (let from = 0; ; from += 1000){
+    const { data, error } = await sb.from("notes").select("id,data").order("created_at", { ascending: false }).range(from, from + 999);
+    if (error) throw error;
+    data.forEach(r => all.push({ ...r.data, id: r.id }));
+    if (data.length < 1000) break;
+  }
+  return all;
+}
+async function useCloud(u){
+  store = "sb"; $("#acc-form").hidden = true;
+  const note = $("#store-note"); note.textContent = "목록을 불러오는 중…";
+  try { items = (await sbLoadAll()).map(normalize); sbLoadedAt = Date.now(); }
+  catch { sbUser = null; useLocal("온라인 저장소에 연결하지 못해 이 브라우저에 저장합니다."); return; }
+  note.textContent = ""; note.append(`${u.email || "내 계정"}에 저장됩니다 · `, el("button", { class: "linkbtn", type: "button", text: "로그아웃", onclick: () => sb.auth.signOut() }));
+  render(); offerMove(); ruleTopicsForOld();
+}
+// 로그인 전에 이 브라우저에 모아 둔 것을 계정으로 옮기기 (이미 있는 것은 건너뜀, 브라우저 쪽은 지우지 않음)
+const movedKey = () => "naemoeum.moved." + (sbUser ? sbUser.id : "");
+const sameKey = x => x.url ? "u:" + urlKey(x.url) : "t:" + (x.text || "").trim().slice(0, 300);
+function moveCandidates(){
+  const have = new Set(items.map(sameKey));
+  return local.read().filter(x => !have.has(sameKey(x)));
+}
+function offerMove(){
+  let done = false; try { done = localStorage.getItem(movedKey()) === "1"; } catch {}
+  const list = done ? [] : moveCandidates();
+  $("#move-box").hidden = !list.length;
+  if (list.length) $("#move-text").textContent = `이 브라우저에만 있는 ${list.length.toLocaleString()}개`;
+}
+$("#move-go").addEventListener("click", async () => {
+  const list = moveCandidates(); if (!list.length){ $("#move-box").hidden = true; return; }
+  const btn = $("#move-go"); btn.disabled = true;
+  try {
+    for (let i = 0; i < list.length; i += SB_CHUNK){
+      btn.textContent = `옮기는 중 ${Math.min(i + SB_CHUNK, list.length).toLocaleString()}/${list.length.toLocaleString()}`;
+      const rows = list.slice(i, i + SB_CHUNK).map(x => ({ data: plain(x), created_at: x.createdAt || new Date().toISOString() }));
+      const { data, error } = await sb.from("notes").insert(rows).select("id,data");
+      if (error) throw error;
+      items = items.concat(data.map(r => normalize({ ...r.data, id: r.id })));
+    }
+    try { localStorage.setItem(movedKey(), "1"); } catch {}
+    $("#move-box").hidden = true; toast(`${list.length.toLocaleString()}개를 옮겼습니다.`); ruleTopicsForOld();
+  } catch { toast("일부를 옮기지 못했습니다. 다시 누르면 남은 것만 옮깁니다."); }
+  finally { btn.disabled = false; btn.textContent = "계정으로 옮기기"; render(); }
+});
+// 다른 기기에서 고친 것을 보려고, 화면으로 돌아올 때 다시 불러온다
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible" || store !== "sb" || Date.now() - sbLoadedAt < 30000) return;
+  try { items = (await sbLoadAll()).map(normalize); sbLoadedAt = Date.now(); render(); } catch {}
+});
+async function sbPatch(id, patch){
+  const cur = items.find(i => i.id === id); if (!cur) return;
+  const next = { ...cur, ...patch };
+  const { error } = await sb.from("notes").update({ data: plain(next) }).eq("id", id);
+  if (error) throw error;
+  Object.assign(cur, normalize(next));
+}
+async function sbDelete(ids){
+  for (let i = 0; i < ids.length; i += 200){ const { error } = await sb.from("notes").delete().in("id", ids.slice(i, i + 200)); if (error) throw error; }
+  const set = new Set(ids); items = items.filter(i => !set.has(i.id)); render();
 }
 /* ================= 주제 자동 붙이기 (키워드 규칙, AI 없이) ================= */
 // [주제, 낱말들, 사이트 주소들]. 제목·설명·내용·주소에서 가장 많이 맞는 주제를 고른다.
@@ -630,21 +733,34 @@ async function addItems(list, onStep){
     await Promise.all([worker(), worker(), worker(), worker()]);
     return ids;
   }
+  if (store === "sb"){
+    const ids = [];
+    for (let i = 0; i < docs.length; i += SB_CHUNK){
+      const { data, error } = await sb.from("notes").insert(docs.slice(i, i + SB_CHUNK).map(d => ({ data: d, created_at: d.createdAt }))).select("id,data");
+      if (error) throw error;
+      ids.push(...data.map(r => r.id)); items = data.map(r => normalize({ ...r.data, id: r.id })).concat(items);
+      onStep && onStep(Math.min(i + SB_CHUNK, docs.length), docs.length);
+    }
+    render(); return ids;
+  }
   const withIds = docs.map((d, i) => ({ id: "n" + (now + i).toString(36) + Math.random().toString(36).slice(2, 6), ...d }));
   items = withIds.map(normalize).concat(items); if (!local.write(items)) toast("브라우저 저장이 막혀 있어 새로고침하면 사라집니다.");
   onStep && onStep(docs.length, docs.length); render(); return withIds.map(d => d.id);
 }
 async function updateItem(id, patch){
   if (store === "db"){ await col.doc(id).update(patch); return; }
+  if (store === "sb"){ await sbPatch(id, patch); render(); return; }
   items = items.map(i => i.id === id ? normalize({ ...i, ...patch }) : i); local.write(items); render();
 }
 async function removeItems(ids){
   const set = new Set(ids);
   if (store === "db"){ let k = 0; const w = async () => { while (k < ids.length){ const id = ids[k++]; await col.doc(id).delete(); } }; await Promise.all([w(), w(), w(), w()]); return; }
+  if (store === "sb") return sbDelete(ids);
   items = items.filter(i => !set.has(i.id)); local.write(items); render();
 }
 async function removeItem(id){
   if (store === "db"){ await col.doc(id).delete(); return; }
+  if (store === "sb") return sbDelete([id]);
   items = items.filter(i => i.id !== id); local.write(items); render();
 }
 
@@ -1281,15 +1397,16 @@ async function fillPreviews(ids){
       if (cur && (!cur.topic || cur.topicBy === "rule")){ const nx = { ...cur, ...patch }, t = ruleTopic(nx); if (t){ const sb = ruleSub(t, nx); if (t !== cur.topic || sb !== (cur.sub || "")){ patch.topic = t; patch.sub = sb; patch.topicBy = "rule"; patch.ruleV = RULE_V; } } }
       if (cur){
         if (store === "db") await col.doc(n.id).update(patch).catch(() => {});
+        else if (store === "sb") await sbPatch(n.id, patch).catch(() => {});
         else { Object.assign(cur, patch); }
       }
       done++; if (many) $("#fill-preview").textContent = `썸네일 채우는 중 ${done}/${todo.length}`;
-      if (store !== "db" && done % 10 === 0){ local.write(items); render(); }
+      if (store !== "db" && done % 10 === 0){ if (store === "local") local.write(items); render(); }
     }
   };
   try { await Promise.all([step(), step(), step()]); }
   finally {
-    pvBusy = false; if (store !== "db") local.write(items); render();
+    pvBusy = false; if (store === "local") local.write(items); render();
     if (many) toast(`${todo.length}개 중 ${got}개의 미리보기를 채웠습니다.`);
   }
 }
@@ -1429,10 +1546,13 @@ function takeSent(){
 }
 render();
 function ruleTopicsForOld(){
-  if (store !== "local") return;
+  if (store !== "local" && store !== "sb") return;
   // 주제가 없거나 예전 규칙으로 붙은 항목은 지금 규칙으로 다시 붙인다 (직접 고친 주제는 그대로)
-  let changed = 0, n = 0; items.forEach(i => { if ((!i.topic && !i.topicBy) || (i.topicBy === "rule" && i.ruleV !== RULE_V)){ const t = ruleTopic(i); i.topic = t; i.sub = ruleSub(t, i); i.topicBy = "rule"; i.ruleV = RULE_V; changed++; n++; } });
-  if (changed) local.write(items); if (n) render();
+  const changed = []; items.forEach(i => { if ((!i.topic && !i.topicBy) || (i.topicBy === "rule" && i.ruleV !== RULE_V)){ const t = ruleTopic(i); i.topic = t; i.sub = ruleSub(t, i); i.topicBy = "rule"; i.ruleV = RULE_V; changed.push(i); } });
+  if (!changed.length) return;
+  if (store === "local") local.write(items);
+  else (async () => { for (let k = 0; k < changed.length; k += SB_CHUNK){ await sb.from("notes").upsert(changed.slice(k, k + SB_CHUNK).map(i => ({ id: i.id, user_id: sbUser.id, data: plain(i) }))); } })().catch(() => {});
+  render();
 }
 takeSent();
 window.addEventListener("hashchange", () => { if (/^#nm/.test(location.hash)) takeSent(); });
