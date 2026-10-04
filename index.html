@@ -51,7 +51,7 @@ h3.label{font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:upper
 .tabs button{border:0;background:transparent;color:var(--muted);font:500 13px var(--f-body);padding:6px 14px;border-radius:999px;cursor:pointer}
 .tabs button[aria-selected="true"]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
-textarea,input[type=text],input[type=search],select{font:15px/1.6 var(--f-body);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+textarea,input[type=text],input[type=search],input[type=email],select{font:15px/1.6 var(--f-body);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
 textarea,input[type=text],input[type=search]{width:100%}
 textarea{resize:vertical}
 select{font-size:14px;padding:7px 10px}
@@ -99,6 +99,11 @@ details.opts[open] summary{margin-bottom:8px}
 .note.warn{color:var(--warn)}
 .account{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
 .account input{flex:1 1 200px;min-width:0}
+.acc-top{margin-left:auto;align-self:center;display:flex;align-items:center}
+.acc-top + .set-btn{margin-left:0}
+.acc-top .account{margin:0;flex-wrap:nowrap}
+.acc-top input{width:220px;flex:0 1 220px;padding:6px 10px;font-size:14px}
+.acc-top button{white-space:nowrap}
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;font:inherit;cursor:pointer}
 
 /* 감지 미리보기 */
@@ -211,6 +216,13 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
   <header class="top">
     <h1><span class="hl">내모음</span></h1>
     <p class="tagline">네이버 지도, 구글 지도, 크롬 즐겨찾기, 네이버 Keep, 유튜브 재생목록, 직접 모은 링크까지 한곳에. 어디서 왔는지, 영상인지 글인지, 무슨 내용인지로 나눠 둡니다.</p>
+    <div class="acc-top">
+      <form class="account" id="acc-form" hidden>
+        <input type="email" id="acc-email" placeholder="이메일로 로그인" autocomplete="email" required aria-label="로그인할 이메일">
+        <button class="btn" id="acc-login" type="submit">로그인</button>
+      </form>
+      <span class="note" id="acc-who" hidden></span>
+    </div>
     <button class="btn set-btn" id="open-settings" type="button" aria-expanded="false" aria-controls="settings">설정</button>
   </header>
 
@@ -237,7 +249,7 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
       <div class="tabs" role="tablist" aria-label="저장 방법">
         <button id="tab-paste" role="tab" aria-selected="true" aria-controls="pane-paste">링크·글 붙여넣기</button>
         <button id="tab-img" role="tab" aria-selected="false" aria-controls="pane-img">이미지</button>
-        <button id="tab-file" role="tab" aria-selected="false" aria-controls="pane-file">파일로 한꺼번에 가져오기</button>
+        <button id="tab-file" role="tab" aria-selected="false" aria-controls="pane-file" hidden>파일로 한꺼번에 가져오기</button>
       </div>
     </div>
 
@@ -370,10 +382,6 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
         </div>
         <div class="active-filters" id="active-filters" hidden></div>
         <p class="note" id="store-note">저장소에 연결하는 중…</p>
-        <form class="account" id="acc-form" hidden>
-          <input type="email" id="acc-email" placeholder="이메일" autocomplete="email" required aria-label="로그인할 이메일">
-          <button class="btn" id="acc-login" type="submit">로그인 링크 받기</button>
-        </form>
         <div class="account" id="move-box" hidden><span class="note" id="move-text"></span><button class="btn" id="move-go" type="button">계정으로 옮기기</button></div>
         <p class="note" id="ai-status" hidden></p>
         <div id="list"></div>
@@ -576,9 +584,9 @@ let sb = null, sbUser = null, sbLoadedAt = 0;
 const SB_CHUNK = 500;
 const plain = x => { const { id, ...d } = x; return d; };
 async function initCloud(){
-  if (!window.supabase) return false;
   const cfg = await fetch("supabase-config.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!cfg || !cfg.url || !cfg.key) return false;
+  if (!window.supabase){ useLocal("로그인 기능을 불러오지 못해 이 브라우저에만 저장합니다."); return true; }
   sb = window.supabase.createClient(cfg.url, cfg.key);
   // 처음 열 때(INITIAL_SESSION), 메일 링크로 돌아왔을 때, 로그아웃할 때 모두 여기로 온다
   sb.auth.onAuthStateChange((ev, session) => {
@@ -589,8 +597,8 @@ async function initCloud(){
   return true;
 }
 function showLogin(){
-  useLocal("이 브라우저에만 저장됩니다. 로그인하면 다른 기기에서도 같은 목록이 보입니다.");
-  $("#acc-form").hidden = false; $("#move-box").hidden = true;
+  useLocal("이 브라우저에만 저장됩니다.");
+  $("#acc-form").hidden = false; $("#acc-who").hidden = true; $("#move-box").hidden = true;
 }
 $("#acc-form").addEventListener("submit", async e => {
   e.preventDefault(); const email = $("#acc-email").value.trim(); if (!email || !sb) return;
@@ -598,7 +606,7 @@ $("#acc-form").addEventListener("submit", async e => {
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
   $("#acc-login").disabled = false;
   if (error) toast(/rate|seconds/i.test(error.message) ? "잠시 뒤에 다시 눌러 주세요." : "로그인 메일을 보내지 못했습니다.");
-  else { toast("메일함의 로그인 링크를 눌러 주세요."); $("#store-note").textContent = `${email}로 로그인 링크를 보냈습니다. 메일의 링크를 이 브라우저에서 열어 주세요.`; }
+  else toast("메일의 로그인 링크를 이 브라우저에서 열어 주세요.");
 });
 async function sbLoadAll(){
   const all = [];
@@ -615,7 +623,9 @@ async function useCloud(u){
   const note = $("#store-note"); note.textContent = "목록을 불러오는 중…";
   try { items = (await sbLoadAll()).map(normalize); sbLoadedAt = Date.now(); }
   catch { sbUser = null; useLocal("온라인 저장소에 연결하지 못해 이 브라우저에 저장합니다."); return; }
-  note.textContent = ""; note.append(`${u.email || "내 계정"}에 저장됩니다 · `, el("button", { class: "linkbtn", type: "button", text: "로그아웃", onclick: () => sb.auth.signOut() }));
+  note.textContent = "어느 기기에서나 같은 목록이 보입니다.";
+  const who = $("#acc-who"); who.textContent = ""; who.hidden = false;
+  who.append(`${u.email || "내 계정"} · `, el("button", { class: "linkbtn", type: "button", text: "로그아웃", onclick: () => sb.auth.signOut() }));
   render(); offerMove(); ruleTopicsForOld();
 }
 // 로그인 전에 이 브라우저에 모아 둔 것을 계정으로 옮기기 (이미 있는 것은 건너뜀, 브라우저 쪽은 지우지 않음)
