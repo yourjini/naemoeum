@@ -49,7 +49,7 @@ h3.label{font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:upper
 
 .tabs{display:inline-flex;background:var(--soft);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
 .tabs button{border:0;background:transparent;color:var(--muted);font:500 13px var(--f-body);padding:6px 14px;border-radius:999px;cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tabs button[aria-selected="true"],.tabs button[aria-pressed="true"]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
 textarea,input[type=text],input[type=search],input[type=email],select{font:15px/1.6 var(--f-body);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
 textarea,input[type=text],input[type=search]{width:100%}
@@ -203,6 +203,9 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
 .toast.show{opacity:1}
 .sent-note{border:1px solid var(--warn);color:var(--ink);background:var(--sheet);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.6}
 .set-btn{margin-left:auto;align-self:center}
+header.top{align-items:center}
+.views button{font-size:14px;padding:7px 16px}
+@media (max-width:520px){h1{font-size:26px}.views button{padding:6px 11px}.acc-top + .set-btn{margin-left:auto}.acc-top{order:5;margin-left:0}.acc-top:has(> :not([hidden])){flex-basis:100%}.acc-top .account{width:100%}.acc-top input{flex:1 1 auto;width:auto;min-width:0}}
 #settings h2{margin:0}
 .bm-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);padding:8px 14px;border-radius:8px;border:1px dashed var(--accent);color:var(--accent);background:var(--sheet);text-decoration:none;cursor:grab}
@@ -215,7 +218,10 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
 <div class="wrap">
   <header class="top">
     <h1><span class="hl">내모음</span></h1>
-    <p class="tagline">네이버 지도, 구글 지도, 크롬 즐겨찾기, 네이버 Keep, 유튜브 재생목록, 직접 모은 링크까지 한곳에. 어디서 왔는지, 영상인지 글인지, 무슨 내용인지로 나눠 둡니다.</p>
+    <nav class="tabs views" aria-label="화면">
+      <button id="view-list" type="button" aria-pressed="true">목록</button>
+      <button id="view-save" type="button" aria-pressed="false">＋ 저장하기</button>
+    </nav>
     <div class="acc-top">
       <form class="account" id="acc-form" hidden>
         <input type="email" id="acc-email" placeholder="이메일로 로그인" autocomplete="email" required aria-label="로그인할 이메일">
@@ -243,7 +249,7 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
   </section>
 
   <!-- 담기 -->
-  <section class="panel stack" aria-labelledby="h-in">
+  <section class="panel stack" id="save-view" aria-labelledby="h-in" hidden>
     <div class="row between">
       <h2 id="h-in">새로 저장하기</h2>
       <div class="tabs" role="tablist" aria-label="저장 방법">
@@ -351,7 +357,7 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
   </section>
 
   <!-- 서재 -->
-  <section class="panel" aria-labelledby="h-lib">
+  <section class="panel" id="list-view" aria-labelledby="h-lib">
     <div class="lib">
       <aside class="filters" id="filters" aria-label="분류"></aside>
       <div class="lib-main">
@@ -856,8 +862,22 @@ $("#save").addEventListener("click", async () => {
 
 /* ================= 탭 ================= */
 const TABS = ["paste", "img", "file"];
-function showTab(which){ TABS.forEach(t => { $("#tab-" + t).setAttribute("aria-selected", String(t === which)); $("#pane-" + t).hidden = t !== which; }); }
+function showTab(which){ setView("save"); TABS.forEach(t => { $("#tab-" + t).setAttribute("aria-selected", String(t === which)); $("#pane-" + t).hidden = t !== which; }); }
 TABS.forEach(t => $("#tab-" + t).addEventListener("click", () => showTab(t)));
+// 화면 나누기: 목록(기본)과 저장하기. 주소 끝 #save로 뒤로 가기도 된다
+let viewPushed = false;
+function setView(v, push){
+  const save = v === "save";
+  if (!$("#save-view").hidden === save) return;
+  $("#save-view").hidden = !save; $("#list-view").hidden = save;
+  $("#view-save").setAttribute("aria-pressed", String(save)); $("#view-list").setAttribute("aria-pressed", String(!save));
+  if (push !== false && !/^#nm/.test(location.hash)) { history[save ? "pushState" : "replaceState"](null, "", location.pathname + location.search + (save ? "#save" : "")); viewPushed = save; }
+  window.scrollTo(0, 0);
+}
+$("#view-save").addEventListener("click", () => { setView("save"); $("#raw").focus(); });
+$("#view-list").addEventListener("click", () => { if (viewPushed && location.hash === "#save"){ viewPushed = false; history.back(); } else setView("list"); });
+window.addEventListener("popstate", () => setView(location.hash === "#save" ? "save" : "list", false));
+if (location.hash === "#save") setView("save", false);
 
 /* ================= 이미지 → 글자 ================= */
 let sampleApi = null, ocrWorkerP = null; const queue = []; let busy = false; let imageTexts = [];
@@ -1314,7 +1334,7 @@ function render(){
   $("#fill-preview").hidden = !noPv || pvBusy; $("#fill-preview").textContent = `썸네일 채우기 (${noPv})`;
   if (!items.length){
     list.append(el("div", { class: "empty" }, el("b", { text: "아직 저장한 것이 없습니다." }), el("br"),
-      "'새로 저장하기'에 링크나 글을 붙여넣거나, 크롬 즐겨찾기·유튜브·구글 지도 내보내기 파일을 가져오세요. 저장한 것은 여기서 종류(영상·링크·글·이미지), 출처, 주제, 저장했던 곳별로 나눠 볼 수 있습니다."));
+      "'＋ 저장하기'에서 링크나 글을 붙여넣으세요."));
     return;
   }
   const vs = visible();
