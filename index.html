@@ -274,10 +274,10 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
       </div>
       <input type="file" id="file" accept="image/*" multiple hidden>
       <div class="row between">
-        <label class="note" for="engine">글자 읽기 방식
+        <label class="note" for="engine" id="engine-wrap" hidden>글자 읽기 방식
           <select id="engine">
-            <option value="local">브라우저에서 읽기 (무료·오프라인)</option>
-            <option value="ai" disabled>AI로 읽기 (더 정확함)</option>
+            <option value="local">브라우저에서 읽기</option>
+            <option value="ai" disabled>AI로 읽기</option>
           </select>
         </label>
         <span class="note" id="ocr-note"></span>
@@ -1118,7 +1118,7 @@ $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.l
   c.use("sample").then(async s => {
     if (!s) return; sampleApi = s;
     $("#ai-classify").hidden = false; $("#ai-on-wrap").hidden = false;
-    const lim = await s.limits().catch(() => null); if (lim && lim.images) $("#engine option[value=ai]").disabled = false;
+    const lim = await s.limits().catch(() => null); if (lim && lim.images){ $("#engine option[value=ai]").disabled = false; $("#engine-wrap").hidden = false; }
   }).catch(() => {});
   c.use("downloads").then(d => {
     if (!d) return; $("#dl-all").hidden = false;
