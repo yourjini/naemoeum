@@ -32,6 +32,7 @@
   --c-video:#ff8a7a; --c-link:#8fa6ff; --c-text:#5fcf98; --c-image:#d5a3f5; --c-place:#5fd3df; color-scheme:dark}
 
 *{box-sizing:border-box} [hidden]{display:none!important}
+html{scroll-padding-top:calc(var(--hdr-h,0px) + 8px)}
 body{background:var(--paper);color:var(--ink);font:15px/1.65 var(--f-body);padding:0 16px;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1240px;margin:0 auto;padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
 header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
@@ -124,8 +125,12 @@ details.opts[open] summary{margin-bottom:8px}
 /* 서재 */
 .lib{display:grid;grid-template-columns:240px minmax(0,1fr);gap:22px;align-items:start}
 @media (max-width:860px){.lib{grid-template-columns:minmax(0,1fr)}}
-aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:calc(12px + env(safe-area-inset-top,0px))}
-@media (max-width:860px){aside.filters{position:static;gap:12px}}
+aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:calc(var(--hdr-h,0px) + 12px);max-height:calc(100vh - var(--hdr-h,0px) - 24px);overflow-y:auto}
+/* 틀 고정: 맨 위 머리줄과 목록 제목·검색 줄은 내려도 붙어 있다 */
+header.top{position:sticky;top:0;z-index:20;background:var(--paper);padding-block:10px;margin-block:-10px;box-shadow:0 0 0 100vmax var(--paper);clip-path:inset(0 -100vmax)}
+.lib-head{position:sticky;top:var(--hdr-h,0px);z-index:10;background:var(--sheet);display:flex;flex-direction:column;gap:12px;padding:10px 0;margin-top:-10px;border-bottom:1px solid var(--line)}
+@media (max-width:520px){.lib-head{gap:8px;padding:8px 0}.lib-head > .row.between{flex-wrap:nowrap}.lib-head h2{font-size:17px;white-space:nowrap}.lib-head .btn{padding:5px 10px;font-size:13px}.lib-head .toolbar{flex-wrap:nowrap}.lib-head .toolbar input[type=search]{flex:1 1 0;min-width:0;padding:7px 10px}.lib-head .toolbar select{flex:0 0 auto;width:auto;max-width:120px;padding:7px 6px}}
+@media (max-width:860px){aside.filters{position:static;gap:12px;max-height:none;overflow:visible}}
 .fgroup ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
 @media (max-width:860px){.fgroup ul{flex-direction:row;flex-wrap:wrap;gap:6px}}
 .fbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:transparent;color:var(--ink);font:14px var(--f-body);padding:5px 8px;border-radius:6px;cursor:pointer;text-align:left}
@@ -361,6 +366,7 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
     <div class="lib">
       <aside class="filters" id="filters" aria-label="분류"></aside>
       <div class="lib-main">
+        <div class="lib-head">
         <div class="row between">
           <h2 id="h-lib">저장한 목록 <span class="stats" id="count"></span></h2>
           <div class="row" id="lib-tools">
@@ -387,6 +393,7 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
           </select>
         </div>
         <div class="active-filters" id="active-filters" hidden></div>
+        </div>
         <p class="note" id="store-note">저장소에 연결하는 중…</p>
         <div class="account" id="move-box" hidden><span class="note" id="move-text"></span><button class="btn" id="move-go" type="button">계정으로 옮기기</button></div>
         <p class="note" id="ai-status" hidden></p>
@@ -865,6 +872,9 @@ const TABS = ["paste", "img", "file"];
 function showTab(which){ setView("save"); TABS.forEach(t => { $("#tab-" + t).setAttribute("aria-selected", String(t === which)); $("#pane-" + t).hidden = t !== which; }); }
 TABS.forEach(t => $("#tab-" + t).addEventListener("click", () => showTab(t)));
 // 화면 나누기: 목록(기본)과 저장하기. 주소 끝 #save로 뒤로 가기도 된다
+// 고정된 머리줄 높이만큼 목록 제목 줄을 내려 붙인다
+const hdr = $("header.top"), setHdrH = () => document.documentElement.style.setProperty("--hdr-h", hdr.getBoundingClientRect().height + "px");
+setHdrH(); if (window.ResizeObserver) new ResizeObserver(setHdrH).observe(hdr);
 let viewPushed = false;
 function setView(v, push){
   const save = v === "save";
