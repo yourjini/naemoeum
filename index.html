@@ -167,9 +167,9 @@ header.top{position:sticky;top:0;z-index:20;background:var(--paper);padding-bloc
 @media (max-width:520px){#list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card{padding:9px 10px}.card .title{font-size:14px}}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--sheet);min-width:0;display:flex;flex-direction:column;gap:6px}
 .card.selectable{cursor:pointer}
-.card.picked{border-color:var(--danger,#c0392b);box-shadow:0 0 0 1px var(--danger,#c0392b) inset}
+.card.picked{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .card .head .pick + .kind{margin-right:auto}
-.card .pick{width:18px;height:18px;margin:0 6px 0 0;accent-color:var(--danger,#c0392b);flex:none}
+.card .pick{width:18px;height:18px;margin:0 6px 0 0;accent-color:var(--accent);flex:none}
 button.btn.danger{color:var(--danger,#c0392b)}
 button.btn.danger-fill{background:var(--danger,#c0392b);border-color:var(--danger,#c0392b);color:#fff}
 button.btn.danger-fill:disabled{opacity:.45;cursor:default}
@@ -200,6 +200,7 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .tm-list button:hover{background:var(--soft)}
 .tm-list button.on{background:var(--mark);color:var(--mark-ink);font-weight:600}
 .tm-list button.muted{color:var(--muted)}
+.tm-list button.tm-sub{padding-left:22px;font-size:13.5px;color:var(--muted)}
 .topic-pick{width:100%;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font:15px var(--f-body);color:var(--ink);cursor:pointer}
 .tm-new{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:6px}
 .tm-new input{flex:1 1 auto;min-width:0;padding:5px 8px;font-size:14px}
@@ -428,10 +429,11 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
             <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
             <button class="btn ghost" id="dl-all" type="button" hidden>파일로 받기</button>
             -->
-            <button class="btn ghost danger" id="sel-start" type="button">삭제</button>
+            <button class="btn ghost" id="sel-start" type="button">선택</button>
           </div>
           <div class="row" id="sel-tools" hidden>
             <button class="btn ghost" id="sel-all" type="button">전체 선택</button>
+            <button class="btn" id="sel-topic" type="button" disabled>주제 바꾸기</button>
             <button class="btn danger-fill" id="sel-del" type="button" disabled>삭제</button>
             <button class="btn ghost" id="sel-cancel" type="button">취소</button>
           </div>
@@ -1332,12 +1334,20 @@ let q = "", sort = "new"; const expanded = new Set(); let editing = null;
 let selecting = false, delArmed = false, onPage = []; const picked = new Set();
 function setSelecting(on){ selecting = on; picked.clear(); delArmed = false; $("#lib-tools").hidden = on; $("#sel-tools").hidden = !on; editing = null; render(); }
 function updateSelTools(){
-  const n = picked.size, b = $("#sel-del"); b.disabled = !n;
+  const n = picked.size, b = $("#sel-del"); b.disabled = !n; $("#sel-topic").disabled = !n;
   b.textContent = !n ? "삭제" : delArmed ? `${n.toLocaleString()}개를 지울까요?` : `${n.toLocaleString()}개 삭제`;
   const vs = onPage; $("#sel-all").textContent = vs.length && vs.every(i => picked.has(i.id)) ? "선택 해제" : "전체 선택";
 }
 $("#sel-start").addEventListener("click", () => setSelecting(true));
 $("#sel-cancel").addEventListener("click", () => setSelecting(false));
+// 고른 것 한꺼번에 주제 바꾸기 (직접 고친 주제로 저장돼 자동 분류가 덮어쓰지 않는다)
+const bulkPick = async (t, sb) => {
+  const ids = [...picked]; if (!ids.length) return; noteTopicUse(t);
+  try { await updateMany(ids, { topic: t, sub: sb || "", topicBy: "user" }); toast(`${ids.length.toLocaleString()}개를 ${t ? `'${t}${sb ? " · " + sb : ""}'(으)로` : "주제 없음으로"} 바꿨습니다.`); setSelecting(false); }
+  catch { toast("주제를 바꾸지 못했습니다."); }
+};
+bulkPick.current = () => ""; bulkPick.currentSub = () => ""; bulkPick.allowNone = true;
+$("#sel-topic").addEventListener("click", e => { e.stopPropagation(); openTopicMenu($("#sel-topic"), { id: "\u0001bulk" }, bulkPick); });
 // '전체 선택'은 지금 페이지에 보이는 카드만 고른다 (다른 페이지에서 고른 건 그대로)
 $("#sel-all").addEventListener("click", () => { const vs = onPage; const all = vs.length && vs.every(i => picked.has(i.id)); vs.forEach(i => all ? picked.delete(i.id) : picked.add(i.id)); delArmed = false; render(); });
 $("#sel-del").addEventListener("click", async () => {
@@ -1487,22 +1497,28 @@ function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
   return [...new Set([...m.keys()].concat(topicPrefs.extra, TOPIC_RULES.map(r => ruleName(r[0]))))].filter(Boolean).sort(topicCmp);
 }
-async function setTopic(n, t){
+async function setTopic(n, t, sb){
   closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
-  if (t === (n.topic || "")) return;
-  try { await updateItem(n.id, { topic: t, sub: t ? ruleSub(t, n) : "", topicBy: "user" }); toast(t ? `'${t}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
+  if (t === (n.topic || "") && (sb === undefined || sb === (n.sub || ""))) return;
+  const sub = sb !== undefined ? sb : (t ? ruleSub(t, n) : "");
+  try { await updateItem(n.id, { topic: t, sub, topicBy: "user" }); toast(t ? `'${t}${sub ? " · " + sub : ""}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
 }
+function subsByTopic(){ const m = new Map(); items.forEach(i => { if (i.topic && i.sub){ if (!m.has(i.topic)) m.set(i.topic, new Set()); m.get(i.topic).add(i.sub); } }); return m; }
 let topicMenu = null;
 function closeTopicMenu(){ if (topicMenu){ topicMenu.remove(); topicMenu = null; } }
 function openTopicMenu(anchor, n, onPick){
   if (topicMenu && topicMenu._for === n.id){ closeTopicMenu(); return; }
-  const cur = onPick ? onPick.current() : (n.topic || "");
-  const pick = t => { if (onPick){ closeTopicMenu(); onPick(t.trim().slice(0, 20)); } else setTopic(n, t); };
+  const cur = onPick ? onPick.current() : (n.topic || ""), curSub = onPick ? (onPick.currentSub ? onPick.currentSub() : "") : (n.sub || "");
+  const pick = (t, sb) => { if (onPick){ closeTopicMenu(); onPick(t.trim().slice(0, 20), sb); } else setTopic(n, t, sb); };
   closeTopicMenu();
   const m = el("div", { class: "topic-menu", role: "menu" }); m._for = n.id;
   const list = el("div", { class: "tm-list" });
-  allTopics().forEach(t => list.append(el("button", { type: "button", role: "menuitem", class: t === cur ? "on" : "", text: t, onclick: () => pick(t) })));
-  if (cur) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("") }));
+  const subs = subsByTopic();
+  allTopics().forEach(t => {
+    list.append(el("button", { type: "button", role: "menuitem", class: t === cur && !curSub ? "on" : "", text: t, onclick: () => pick(t, subs.has(t) ? "" : undefined) }));
+    if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), text: sb, onclick: () => pick(t, sb) })));
+  });
+  if (cur || (onPick && onPick.allowNone)) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("") }));
   const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
   const form = el("form", { class: "tm-new" }, inp, el("button", { type: "submit", class: "btn", text: "추가" }));
   form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) pick(inp.value); });
@@ -1570,10 +1586,11 @@ function editForm(n){
   const field = (label, input) => el("label", {}, label, input);
   const iTitle = el("input", { type: "text", id: "e-title", value: n.title || "" });
   const iUrl = el("input", { type: "text", id: "e-url", value: n.url || "" });
-  let topicVal = n.topic || "";
+  let topicVal = n.topic || "", subVal = n.sub || "";
   const iTopic = el("button", { type: "button", id: "e-topic", class: "topic-pick", text: (topicVal || NO_TOPIC) + " ▾" });
-  const pickTopic = t => { topicVal = t; iTopic.textContent = (t || NO_TOPIC) + " ▾"; };
-  pickTopic.current = () => topicVal;
+  const pickTopic = (t, sb) => { topicVal = t; subVal = sb !== undefined ? sb : (t ? ruleSub(t, n) : ""); iTopic.textContent = (t ? t + (subVal ? " · " + subVal : "") : NO_TOPIC) + " ▾"; };
+  pickTopic.current = () => topicVal; pickTopic.currentSub = () => subVal;
+  pickTopic(topicVal, subVal);
   iTopic.addEventListener("click", e => { e.stopPropagation(); openTopicMenu(iTopic, n, pickTopic); });
   const iTags = el("input", { type: "text", id: "e-tags", value: n.tags.join(", ") });
   const iFrom = el("select", { id: "e-from" }); fillSelect(iFrom, n.savedFrom); if (!FROM_OPTIONS.includes(n.savedFrom)) iFrom.append(el("option", { value: n.savedFrom, text: n.savedFrom, selected: true }));
@@ -1583,7 +1600,7 @@ function editForm(n){
   f.append(el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", text: "저장" }), el("button", { class: "btn ghost", type: "button", text: "취소", onclick: () => { editing = null; render(); } })));
   f.addEventListener("submit", async e => {
     e.preventDefault(); const url = iUrl.value.trim() ? cleanUrl(iUrl.value) : "";
-    const patch = { title: iTitle.value.trim(), url, platform: url ? platformOf(url) : n.platform, ...(topicVal !== (n.topic || "") ? { topic: topicVal, sub: topicVal ? ruleSub(topicVal, n) : "", topicBy: "user" } : {}), tags: parseTags(iTags.value), savedFrom: iFrom.value, type: iType.value, text: iText.value.trim() };
+    const patch = { title: iTitle.value.trim(), url, platform: url ? platformOf(url) : n.platform, ...(topicVal !== (n.topic || "") || subVal !== (n.sub || "") ? { topic: topicVal, sub: subVal, topicBy: "user" } : {}), tags: parseTags(iTags.value), savedFrom: iFrom.value, type: iType.value, text: iText.value.trim() };
     if (patch.topic) noteTopicUse(patch.topic);
     try { await updateItem(n.id, patch); editing = null; render(); toast("고쳤습니다."); } catch { toast("저장하지 못했습니다."); }
   });
