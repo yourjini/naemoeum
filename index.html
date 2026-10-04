@@ -1378,7 +1378,7 @@ function countsFor(k){
 }
 function renderFilters(){
   const box = $("#filters"); box.textContent = "";
-  const fbtn = (k, v, n, label, cls, parent) => el("li", {}, el("button", { class: "fbtn" + (cls ? " " + cls : ""), type: "button", "aria-pressed": String(F[k] === v && (!parent || F.topic === parent)), onclick: () => { if (parent && F.topic !== parent){ F.topic = parent; F.sub = v; } else F[k] = F[k] === v ? null : v; if (k === "topic"){ F.sub = null; if (F.topic){ openTopics.add(F.topic); saveOpenTopics(); } } render(); } },
+  const fbtn = (k, v, n, label, cls, parent) => el("li", {}, el("button", { class: "fbtn" + (cls ? " " + cls : ""), type: "button", "aria-pressed": String(F[k] === v && (!parent || F.topic === parent) && !(k === "topic" && F.sub)), onclick: () => { if (parent && F.topic !== parent){ F.topic = parent; F.sub = v; } else F[k] = F[k] === v ? null : v; if (k === "topic"){ F.sub = null; if (F.topic){ openTopics.add(F.topic); saveOpenTopics(); } } render(); } },
     k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: label || (k === "tag" ? "#" + v : v) }), el("span", { class: "stats", text: n.toLocaleString() })));
   // 주제: 큰 주제만 보이고, 고르면 세부 주제가 그 아래에 열린다. 3개 미만인 주제는 '기타'로 묶는다.
   const all = new Map(); items.forEach(i => { const t = i.topic || NO_TOPIC; all.set(t, (all.get(t) || 0) + 1); });
