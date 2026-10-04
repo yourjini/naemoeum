@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>내모음</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Myeongjo:wght@700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 위에는 '담기'(붙여넣기·이미지·파일), 아래는 서재(왼쪽 필터 + 오른쪽 카드). 좁은 화면에서는 필터가 카드 위로 올라간다. */
+:root{
+  --paper:#f3f5f8; --sheet:#ffffff; --ink:#1b2233; --muted:#5d6779; --line:#d9dee7;
+  --accent:#2c4bd6; --accent-ink:#ffffff; --mark:#fff09a; --mark-ink:#1b2233;
+  --ok:#1d7a4f; --warn:#a2560f; --danger:#b42335; --soft:#e8ecf5;
+  --c-video:#c4372d; --c-link:#2c4bd6; --c-text:#1d7a4f; --c-image:#8a44b8; --c-place:#0f7f8c;
+  --f-display:"Nanum Myeongjo","Batang","AppleMyungjo",serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#12161f; --sheet:#1a202c; --ink:#e7ebf3; --muted:#9aa4b6; --line:#2d3546;
+  --accent:#8fa6ff; --accent-ink:#0f1422; --mark:#5c5420; --mark-ink:#fff7c2;
+  --ok:#5fcf98; --warn:#f0b066; --danger:#ff8a98; --soft:#232b3a;
+  --c-video:#ff8a7a; --c-link:#8fa6ff; --c-text:#5fcf98; --c-image:#d5a3f5; --c-place:#5fd3df; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#12161f; --sheet:#1a202c; --ink:#e7ebf3; --muted:#9aa4b6; --line:#2d3546;
+  --accent:#8fa6ff; --accent-ink:#0f1422; --mark:#5c5420; --mark-ink:#fff7c2;
+  --ok:#5fcf98; --warn:#f0b066; --danger:#ff8a98; --soft:#232b3a;
+  --c-video:#ff8a7a; --c-link:#8fa6ff; --c-text:#5fcf98; --c-image:#d5a3f5; --c-place:#5fd3df; color-scheme:dark}
+
+*{box-sizing:border-box} [hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font:15px/1.65 var(--f-body);padding:0 16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
+h1{font:800 34px/1.1 var(--f-display);margin:0;letter-spacing:-.01em}
+h1 .hl{background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
+.tagline{color:var(--muted);margin:0;font-size:14px}
+section.panel{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+h2{font:700 19px/1.3 var(--f-display);margin:0;text-wrap:balance}
+h3.label{font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.cap-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.cap-grid{grid-template-columns:minmax(0,1fr)}}
+
+.tabs{display:inline-flex;background:var(--soft);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;color:var(--muted);font:500 13px var(--f-body);padding:6px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--sheet);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+textarea,input[type=text],input[type=search],select{font:15px/1.6 var(--f-body);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+textarea,input[type=text],input[type=search]{width:100%}
+textarea{resize:vertical}
+select{font-size:14px;padding:7px 10px}
+textarea:focus,input:focus,select:focus,button:focus-visible,.drop:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#raw{min-height:170px}
+#out{min-height:140px;background:var(--sheet)}
+
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:26px 16px;text-align:center;color:var(--muted);cursor:pointer;background:var(--paper);transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--soft)}
+.drop strong{color:var(--ink);display:block;font-weight:600;margin-bottom:2px}
+.drop small{font-size:12.5px}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumbs figure{margin:0;width:92px}
+.thumbs img{width:92px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
+.thumbs figcaption{font:11px/1.3 var(--f-mono);color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumbs figcaption.done{color:var(--ok)} .thumbs figcaption.err{color:var(--danger)}
+.bar{height:4px;background:var(--soft);border-radius:4px;overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+
+button.btn{font:500 14px var(--f-body);border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 13px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+button.btn:hover{border-color:var(--muted)}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:5px 8px}
+button.btn.ghost:hover{color:var(--ink);background:var(--soft)}
+button.btn.danger{color:var(--danger)}
+button.btn:disabled{opacity:.5;cursor:not-allowed}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;user-select:none}
+.chk input{accent-color:var(--accent);width:15px;height:15px}
+details.opts summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
+details.opts[open] summary{margin-bottom:8px}
+
+.stats{font:12px/1 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font:500 11px/1 var(--f-mono);padding:4px 7px;border-radius:999px;background:var(--mark);color:var(--mark-ink);letter-spacing:.03em}
+.note{font-size:13px;color:var(--muted);margin:0}
+.note.warn{color:var(--warn)}
+
+/* 감지 미리보기 */
+.detect{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:10px 12px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.detect .d-item{display:flex;gap:8px;align-items:baseline;min-width:0;font-size:13.5px}
+.detect .d-item span.t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dup{font:11px var(--f-mono);color:var(--muted)}
+
+/* 종류 표시 */
+.kind{display:inline-flex;align-items:center;gap:5px;font:500 11.5px/1 var(--f-mono);letter-spacing:.02em;white-space:nowrap}
+.kind::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor}
+.k-video{color:var(--c-video)} .k-link{color:var(--c-link)} .k-text{color:var(--c-text)} .k-image{color:var(--c-image)} .k-place{color:var(--c-place)}
+.k-video::before{border-radius:0;clip-path:polygon(0 0,100% 50%,0 100%)}
+.k-text::before{height:2px;box-shadow:0 3px 0 currentColor,0 -3px 0 currentColor;border-radius:0}
+.k-image::before{border-radius:50%}
+.k-place::before{border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+
+/* 서재 */
+.lib{display:grid;grid-template-columns:240px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.lib{grid-template-columns:minmax(0,1fr)}}
+aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:calc(12px + env(safe-area-inset-top,0px))}
+@media (max-width:860px){aside.filters{position:static;gap:12px}}
+.fgroup ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+@media (max-width:860px){.fgroup ul{flex-direction:row;flex-wrap:wrap;gap:6px}}
+.fbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:transparent;color:var(--ink);font:14px var(--f-body);padding:5px 8px;border-radius:6px;cursor:pointer;text-align:left}
+.fbtn:hover{background:var(--soft)}
+.fbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.fbtn[aria-pressed="true"] .stats{color:var(--paper)}
+.fbtn .kind{font:500 13px/1.2 var(--f-body)}
+.fbtn .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:860px){.fbtn{width:auto;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:13px}}
+
+.lib-main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar input[type=search]{flex:1 1 220px;width:auto}
+.active-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.active-filters button{font:13px var(--f-body);border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:999px;padding:2px 10px;cursor:pointer}
+
+#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--sheet);min-width:0;display:flex;flex-direction:column;gap:6px}
+.card .head{display:flex;justify-content:space-between;gap:8px;align-items:center;min-width:0}
+.card .src{font:12px/1.3 var(--f-mono);color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .title{font:700 16px/1.4 var(--f-display);margin:0;overflow-wrap:anywhere}
+.card .title a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line)}
+.card .title a:hover{border-color:var(--accent);color:var(--accent)}
+.card .body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;margin:0;color:var(--ink)}
+.card .body.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.card .sum{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
+.card .chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:12px/1.2 var(--f-body);border-radius:5px;padding:3px 7px;background:var(--soft);color:var(--ink);border:0;cursor:pointer}
+.chip.topic{background:var(--mark);color:var(--mark-ink);font-weight:600}
+.chip.tag{background:transparent;color:var(--accent);padding:3px 2px;font-family:var(--f-mono)}
+.card .foot{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:4px;border-top:1px solid var(--line)}
+.card .when{font:11.5px var(--f-mono);color:var(--muted)}
+.card .actions{display:flex;flex-wrap:wrap;gap:0}
+.card .actions .btn{font-size:13px;padding:4px 7px}
+.card.editing{grid-column:1/-1}
+.edit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.edit-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.confirm{display:inline-flex;gap:4px;align-items:center;font-size:13px;color:var(--danger)}
+.empty{border:1.5px dashed var(--line);border-radius:8px;padding:22px 16px;color:var(--muted);font-size:14px;grid-column:1/-1}
+.empty b{color:var(--ink)}
+mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2px}
+.progress{height:6px;background:var(--soft);border-radius:6px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:14px;padding:9px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100vw - 32px);z-index:5}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1><span class="hl">내모음</span></h1>
+    <p class="tagline">네이버 지도, 구글 지도, 크롬 즐겨찾기, 네이버 Keep, 유튜브 재생목록, 직접 모은 링크까지 한곳에. 어디서 왔는지, 영상인지 글인지, 무슨 내용인지로 나눠 둡니다.</p>
+  </header>
+
+  <!-- 담기 -->
+  <section class="panel stack" aria-labelledby="h-in">
+    <div class="row between">
+      <h2 id="h-in">담기</h2>
+      <div class="tabs" role="tablist" aria-label="담는 방법">
+        <button id="tab-paste" role="tab" aria-selected="true" aria-controls="pane-paste">링크·글 붙여넣기</button>
+        <button id="tab-img" role="tab" aria-selected="false" aria-controls="pane-img">이미지</button>
+        <button id="tab-file" role="tab" aria-selected="false" aria-controls="pane-file">저장 목록 가져오기</button>
+      </div>
+    </div>
+
+    <!-- 붙여넣기 -->
+    <div id="pane-paste" role="tabpanel" aria-labelledby="tab-paste" class="cap-grid">
+      <div class="stack">
+        <textarea id="raw" spellcheck="false" placeholder="링크, 문장, 또는 둘 다 붙여넣으세요. 링크를 여러 줄 붙여넣으면 한 번에 여러 개를 담습니다. 스크린샷을 붙여넣으면 글자를 읽습니다."></textarea>
+        <div class="row between">
+          <span class="note" id="raw-note"><span class="pill">예시</span> 붙여넣으면 이 예시는 사라집니다.</span>
+          <button class="btn ghost" id="raw-clear" type="button">비우기</button>
+        </div>
+      </div>
+      <div class="stack">
+        <div>
+          <h3 class="label" id="detect-label">알아본 것</h3>
+          <div class="detect" id="detect" aria-labelledby="detect-label"></div>
+        </div>
+        <div id="text-mode" class="stack" hidden>
+          <textarea id="out" spellcheck="false" aria-label="정리된 글" placeholder="정리된 글"></textarea>
+          <details class="opts"><summary>정리 방식 <span class="stats" id="stats"></span></summary>
+            <div class="row">
+              <label class="chk"><input type="checkbox" id="o-join" checked>끊긴 줄 잇기</label>
+              <label class="chk"><input type="checkbox" id="o-dedup" checked>중복 문장 지우기</label>
+              <label class="chk"><input type="checkbox" id="o-noise" checked>잡문자 지우기</label>
+              <label class="chk"><input type="checkbox" id="o-split">문장마다 나누기</label>
+            </div>
+          </details>
+          <input type="text" id="title" placeholder="제목 (비우면 첫 문장으로)" aria-label="제목">
+        </div>
+        <div class="row">
+          <label class="note" for="from">저장했던 곳</label>
+          <select id="from"></select>
+          <input type="text" id="tags" placeholder="태그 (쉼표로 구분)" aria-label="태그" style="flex:1 1 160px;width:auto">
+        </div>
+        <div class="row between">
+          <span class="note" id="ai-hint" hidden>AI 정리를 켜면 담을 때 주제·태그·요약을 붙입니다.</span>
+          <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>담을 때 AI로 분류</label>
+          <button class="btn primary" id="save" type="button">담기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 이미지 -->
+    <div id="pane-img" role="tabpanel" aria-labelledby="tab-img" class="stack" hidden>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="이미지 선택">
+        <strong>이미지를 끌어다 놓거나 눌러서 선택</strong>
+        <small>스크린샷을 복사했다면 이 페이지 아무 곳에서나 붙여넣기 해도 됩니다 · 여러 장 가능</small>
+      </div>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <div class="row between">
+        <label class="note" for="engine">글자 읽기 방식
+          <select id="engine">
+            <option value="local">브라우저에서 읽기 (무료·오프라인)</option>
+            <option value="ai" disabled>AI로 읽기 (더 정확함)</option>
+          </select>
+        </label>
+        <span class="note" id="ocr-note"></span>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+      <p class="note">읽은 글은 '링크·글 붙여넣기' 칸으로 옮겨집니다. 거기서 다듬고 담으세요.</p>
+    </div>
+
+    <!-- 파일 가져오기 -->
+    <div id="pane-file" role="tabpanel" aria-labelledby="tab-file" class="cap-grid" hidden>
+      <div class="stack">
+        <div class="drop" id="drop-file" tabindex="0" role="button" aria-label="저장 목록 파일 선택">
+          <strong>내보낸 저장 목록 파일을 끌어다 놓거나 눌러서 선택</strong>
+          <small>.html · .json · .csv · .txt 안의 링크를 모두 찾아냅니다</small>
+        </div>
+        <input type="file" id="file-import" accept=".html,.htm,.json,.csv,.txt,text/html,application/json,text/csv,text/plain" multiple hidden>
+        <ul class="note" style="padding-left:18px;margin:0;display:flex;flex-direction:column;gap:4px">
+          <li><b>크롬 즐겨찾기</b>: 주소창에 chrome://bookmarks 입력 → 오른쪽 위 ⋮ → 북마크 내보내기 → 저장된 .html 파일을 여기에 올리세요. 폴더 이름은 태그가 됩니다.</li>
+          <li><b>유튜브 재생목록</b>: 재생목록 페이지를 열고 끝까지 내린 뒤 전체 선택(Ctrl+A)·복사해서 '링크·글 붙여넣기'에 붙이면 영상 제목과 링크를 뽑습니다. 목록 전체는 Google 테이크아웃(takeout.google.com) → YouTube → 재생목록 .csv를 여기에 올려도 됩니다.</li>
+          <li><b>네이버 지도</b>: 저장한 장소에서 공유 → 복사한 문구([네이버 지도] 장소 이름, 주소, 링크)를 그대로 붙여넣으면 '장소'로 담깁니다. 여러 곳을 이어 붙여도 됩니다.</li>
+          <li><b>구글 지도</b>: takeout.google.com에서 '저장됨'(장소 목록 .csv)과 '지도(내 장소)'(저장된 장소.json)를 골라 내보낸 뒤 그 파일들을 여기에 올리세요. 목록 이름 파일 여러 개를 한 번에 올려도 됩니다.</li>
+          <li><b>네이버 Keep</b>: 내보내기 기능이 없어요. Keep 화면에서 메모를 선택·복사해 붙여넣으세요. 링크가 여러 개면 한 번에 나눠 담습니다.</li>
+          <li><b>직접 입력</b>: 링크만, 또는 "제목 링크"나 윗줄 제목 + 아랫줄 링크 형태로 여러 줄 붙여넣으세요.</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h3 class="label">가져올 목록</h3>
+        <div class="detect" id="import-preview"><span class="note">파일을 고르면 찾은 링크가 여기 나옵니다.</span></div>
+        <div class="row">
+          <label class="note" for="import-from">저장했던 곳</label>
+          <select id="import-from"></select>
+        </div>
+        <div class="progress" id="import-progress" hidden><i></i></div>
+        <div class="row between">
+          <span class="note" id="import-note"></span>
+          <button class="btn primary" id="import-go" type="button" disabled>모두 담기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 서재 -->
+  <section class="panel" aria-labelledby="h-lib">
+    <div class="lib">
+      <aside class="filters" id="filters" aria-label="분류"></aside>
+      <div class="lib-main">
+        <div class="row between">
+          <h2 id="h-lib">내 서재 <span class="stats" id="count"></span></h2>
+          <div class="row">
+            <button class="btn" id="ai-classify" type="button" hidden>AI로 분류</button>
+            <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
+            <button class="btn ghost" id="dl-all" type="button" hidden>파일로 받기</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="q" placeholder="제목, 내용, 주소, 태그로 찾기" aria-label="서재 검색">
+          <select id="sort" aria-label="정렬">
+            <option value="new">최근 담은 순</option>
+            <option value="old">오래된 순</option>
+            <option value="title">제목 순</option>
+          </select>
+        </div>
+        <div class="active-filters" id="active-filters" hidden></div>
+        <p class="note" id="store-note">저장소에 연결하는 중…</p>
+        <p class="note" id="ai-status" hidden></p>
+        <div id="list"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
+<script>
+(() => {
+const $ = (s, el = document) => el.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(props)){ if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v); } for (const c of kids.flat()) if (c != null && c !== false) n.append(c); return n; };
+const toastEl = $("#toast"); let toastT;
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("show"), 2400); }
+
+/* ================= 출처 알아보기 ================= */
+const TYPE_LABEL = { video: "영상", place: "장소", link: "링크", text: "글", image: "이미지" };
+const FROM_OPTIONS = ["직접 입력", "크롬 즐겨찾기", "네이버 지도", "구글 지도", "네이버 Keep", "유튜브 재생목록", "인스타그램", "카카오톡", "기타"];
+const LEGACY_FROM = { "직접 담음": "직접 입력", "크롬 북마크": "크롬 즐겨찾기" };
+const PLATFORMS = [
+  [/(^|\.)youtube\.com$|(^|\.)youtu\.be$/, "YouTube"],
+  [/(^|\.)instagram\.com$/, "Instagram"],
+  [/^keep\.naver\.com$/, "네이버 Keep"],
+  [/^map\.naver\.com$|^m\.map\.naver\.com$|^pcmap\.place\.naver\.com$|^m\.place\.naver\.com$/, "네이버 지도"],
+  [/^naver\.me$/, "네이버 단축링크"],
+  [/^maps\.google\.|^maps\.app\.goo\.gl$|^goo\.gl$/, "Google 지도"],
+  [/^map\.kakao\.com$|^kko\.to$|^place\.map\.kakao\.com$/, "카카오맵"],
+  [/^blog\.naver\.com$|^m\.blog\.naver\.com$/, "네이버 블로그"],
+  [/^cafe\.naver\.com$|^m\.cafe\.naver\.com$/, "네이버 카페"],
+  [/news\.naver\.com$/, "네이버 뉴스"],
+  [/^tv\.naver\.com$|^chzzk\.naver\.com$/, "네이버 TV"],
+  [/(^|\.)naver\.com$|(^|\.)naver\.me$/, "네이버"],
+  [/(^|\.)tiktok\.com$/, "TikTok"],
+  [/(^|\.)(x|twitter)\.com$/, "X"],
+  [/(^|\.)facebook\.com$|(^|\.)fb\.watch$/, "Facebook"],
+  [/(^|\.)threads\.(net|com)$/, "Threads"],
+  [/(^|\.)tistory\.com$/, "티스토리"],
+  [/(^|\.)brunch\.co\.kr$/, "브런치"],
+  [/(^|\.)velog\.io$/, "velog"],
+  [/(^|\.)medium\.com$/, "Medium"],
+  [/(^|\.)github\.com$/, "GitHub"],
+  [/(^|\.)notion\.(so|site)$/, "Notion"],
+  [/(^|\.)vimeo\.com$/, "Vimeo"],
+  [/(^|\.)daum\.net$|(^|\.)kakao\.com$/, "다음·카카오"],
+  [/(^|\.)coupang\.com$/, "쿠팡"],
+  [/docs\.google\.com$|drive\.google\.com$/, "Google 문서"],
+];
+function hostOf(u){ try { return new URL(u).hostname.replace(/^www\.|^m\./, ""); } catch { return ""; } }
+function platformOf(u){ const h = hostOf(u); if (!h) return ""; if (/^google\.[a-z.]+$/.test(h) && /^\/maps/.test((() => { try { return new URL(u).pathname; } catch { return ""; } })())) return "Google 지도"; for (const [re, name] of PLATFORMS) if (re.test(h)) return name; return h; }
+function ytId(u){
+  try { const x = new URL(u); const h = x.hostname.replace(/^www\.|^m\.|^music\./, "");
+    if (h === "youtu.be") return x.pathname.slice(1, 12) || null;
+    if (h === "youtube.com"){ if (x.searchParams.get("v")) return x.searchParams.get("v"); const m = x.pathname.match(/^\/(shorts|live|embed)\/([\w-]{6,})/); if (m) return m[2]; }
+  } catch {} return null;
+}
+function typeOfUrl(u){
+  const h = hostOf(u); let p = ""; try { p = new URL(u).pathname; } catch {}
+  if (ytId(u) || (/youtube\.com$/.test(h) && /^\/playlist/.test(p))) return "video";
+  if (/^(m\.)?map\.naver\.com$|place\.naver\.com$|^map\.kakao\.com$|^kko\.to$|^maps\.app\.goo\.gl$|^maps\.google\./.test(h) || (/google\./.test(h) && /^\/maps/.test(p)) || (/^maps\.google\./.test(h)) || (/^goo\.gl$/.test(h) && /^\/maps/.test(p))) return "place";
+  if (/instagram\.com$/.test(h) && /^\/(reel|reels|tv)\//.test(p)) return "video";
+  if (/instagram\.com$/.test(h) && /^\/p\//.test(p)) return "image";
+  if (/tiktok\.com$|vimeo\.com$|fb\.watch$|^tv\.naver\.com$|chzzk\.naver\.com$/.test(h)) return "video";
+  if (/\.(mp4|mov|webm)(\?|$)/i.test(p)) return "video";
+  if (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(p)) return "image";
+  return "link";
+}
+function cleanUrl(u){
+  try {
+    const x = new URL(u.trim());
+    [...x.searchParams.keys()].forEach(k => { if (/^(utm_|fbclid|gclid|igsh|igshid|si$|feature$|ref_src|mibextid)/i.test(k)) x.searchParams.delete(k); });
+    const id = ytId(x.href); if (id && !/\/shorts\//.test(x.pathname)) return "https://www.youtube.com/watch?v=" + id;
+    x.hash = x.hash && x.hash.length > 1 ? x.hash : "";
+    return x.href.replace(/\/$/, "");
+  } catch { return u.trim(); }
+}
+function urlKey(u){ const id = ytId(u); if (id) return "yt:" + id; return cleanUrl(u).replace(/^https?:\/\/(www\.|m\.)?/, "").toLowerCase(); }
+const URL_RE = /https?:\/\/[^\s<>"'`)\]}]+[^\s<>"'`)\]}.,;:!?。、]/g;
+function defaultTitle(u){
+  const p = platformOf(u), id = ytId(u);
+  if (id) return `${p} 영상 · ${id}`;
+  try { const x = new URL(u); if (/youtube\.com$/.test(x.hostname) && x.searchParams.get("list")) return `YouTube 재생목록 · ${x.searchParams.get("list")}`; } catch {}
+  try { const x = new URL(u); const seg = decodeURIComponent(x.pathname).split("/").filter(Boolean).pop() || ""; return seg && seg.length < 60 ? `${p} · ${seg.replace(/[-_]+/g, " ")}` : p; } catch { return u; }
+}
+
+/* ================= 글 정리 규칙 ================= */
+const PARTICLE = /^(은|는|이|가|을|를|의|에|도|로|와|과|고|며|면|다|요|서|게|지|던|든|만|께|나|랑)(?=[\s,.!?]|$)/;
+const BULLET = /^\s*([-•·▪●○◦*‣–—]|\d{1,2}[.)]|[①-⑳]|[가-하][.)])\s+/;
+const SENT = /[^.!?。！？]+(?:[.!?。！？]+["'”’)\]」』]*|$)/g;
+function tidy(text, o){
+  let t = String(text || "").replace(/\r\n?/g, "\n").replace(/[​-‍﻿­]/g, "")
+    .replace(/[  -   　\t]/g, " ").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[ ]{2,}/g, " ");
+  let lines = t.split("\n").map(l => l.trim());
+  // 잡문자: 의미 있는 글자가 2자 미만인 줄, 짧은 조각을 | 로 이은 메뉴 줄(공유 | 댓글 12 | ♡)
+  if (o.noise) lines = lines.filter(l => !l || ((l.match(/[0-9A-Za-z가-힣]/g) || []).length >= 2 && !(/[|｜]/.test(l) && l.split(/[|｜]/).every(x => x.trim().length <= 8))));
+  const paras = []; let cur = [];
+  for (const l of lines){ if (!l){ if (cur.length){ paras.push(cur); cur = []; } } else cur.push(l); }
+  if (cur.length) paras.push(cur);
+  let blocks = paras.map(p => {
+    if (!o.join) return p.join("\n");
+    let s = p[0];
+    for (let i = 1; i < p.length; i++){
+      const prev = s, next = p[i];
+      if (BULLET.test(next) || /^https?:\/\//.test(next)) { s += "\n" + next; continue; }
+      if (/[A-Za-z]-$/.test(prev) && /^[a-z]/.test(next)) { s = prev.slice(0, -1) + next; continue; }
+      // 한글 낱말이 줄 끝에서 잘린 경우(이해하 / 는 데서)는 붙인다
+      if (/[가-힣]$/.test(prev) && PARTICLE.test(next)) { s += next; continue; }
+      s += " " + next;
+    }
+    return s.replace(/\s+([,.!?;:)\]』」])/g, "$1").replace(/([(\[『「])\s+/g, "$1");
+  });
+  if (o.dedup){
+    const seen = new Set(); const keyOf = x => x.replace(/^•\s*/, "").replace(/[\s.!?。]+/g, "").toLowerCase();
+    blocks = blocks.map(b => b.split("\n").map(line => (line.match(SENT) || [line])
+      .filter(x => { const k = keyOf(x); if (!k) return false; if (k.length >= 4 && seen.has(k)) return false; seen.add(k); return true; })
+      .map(x => x.trim()).join(" ")).filter(Boolean).join("\n")).filter(Boolean);
+  }
+  if (o.split){
+    const out = [];
+    for (const b of blocks) for (const part of b.split("\n")){ const p = part.replace(BULLET, ""); for (const x of (p.match(SENT) || [p])){ const y = x.trim(); if (y) out.push("• " + y); } }
+    return out.join("\n");
+  }
+  return blocks.join("\n\n");
+}
+const tidyOpts = () => ({ join: $("#o-join").checked, dedup: $("#o-dedup").checked, noise: $("#o-noise").checked, split: $("#o-split").checked });
+function firstSentence(text){ const f = (text.replace(/^•\s*/, "").match(SENT) || [text])[0].trim(); return f.length > 48 ? f.slice(0, 46) + "…" : f; }
+
+/* ================= 붙여넣은 내용 해석 ================= */
+// 링크만 여러 줄 → 링크 여러 개 / 글이 충분히 있으면 → 글 하나(첫 링크를 출처로)
+const MAP_HEAD = /^\s*\[\s*(네이버\s*지도|NAVER\s*Map|카카오맵|Google\s*지도)\s*\]\s*$/im;
+// 지도 앱 공유 문구: [네이버 지도] / 장소 이름 / 주소 / 링크  (여러 곳을 이어 붙여도 나눠서 읽는다)
+function parsePlaces(text){
+  const out = []; let cur = null;
+  const flush = () => { if (cur && cur.url){ const [name, ...rest] = cur.lines; out.push({ type: "place", url: cleanUrl(cur.url), platform: cur.platform, title: (name || "").slice(0, 120), text: rest.join("\n").slice(0, 400) }); } cur = null; };
+  for (const line of text.split(/\n/)){
+    const head = line.match(MAP_HEAD);
+    if (head){ flush(); cur = { lines: [], url: "", platform: /카카오/.test(head[1]) ? "카카오맵" : /google/i.test(head[1]) ? "Google 지도" : "네이버 지도" }; continue; }
+    if (!cur) continue;
+    const u = line.match(URL_RE);
+    if (u){ cur.url = cur.url || u[0]; const rest = line.replace(URL_RE, "").trim(); if (rest) cur.lines.push(rest); }
+    else if (line.trim()) cur.lines.push(line.trim());
+  }
+  flush(); return out;
+}
+function analyze(raw){
+  const text = String(raw || "");
+  if (MAP_HEAD.test(text)){ const places = parsePlaces(text); if (places.length) return { mode: "links", items: places }; }
+  const urls = [...new Set((text.match(URL_RE) || []))];
+  const rest = text.replace(URL_RE, " ");
+  const meaningful = (rest.match(/[0-9A-Za-z가-힣]/g) || []).length;
+  const linesWithUrl = text.split(/\n/).filter(l => /https?:\/\//.test(l));
+  const looksLikeList = urls.length > 1 && linesWithUrl.length >= urls.length * 0.8 && meaningful < urls.length * 90;
+  if (urls.length && (looksLikeList || meaningful < 25)){
+    const items = []; let prevLabel = "";
+    for (const line of text.split(/\n/)){
+      const found = line.match(URL_RE);
+      if (!found){ const t = line.trim(); prevLabel = t.length >= 2 && t.length <= 120 ? t : ""; continue; }
+      let label = line.replace(URL_RE, "").replace(/^[\s\-•·*>|:]+|[\s\-•·*|:]+$/g, "").trim();
+      // 링크 바로 윗줄의 짧은 글은 그 링크의 제목으로 본다 (메모: 제목 / 다음 줄: 링크)
+      if (!label && found.length === 1 && prevLabel) label = prevLabel;
+      prevLabel = "";
+      for (const u of found){ const url = cleanUrl(u); items.push({ type: typeOfUrl(url), url, platform: platformOf(url), title: (found.length === 1 && label.length >= 2) ? label.slice(0, 160) : "" }); }
+    }
+    const seen = new Set(); return { mode: "links", items: items.filter(i => { const k = urlKey(i.url); if (seen.has(k)) return false; seen.add(k); return true; }) };
+  }
+  if (!meaningful) return { mode: "empty", items: [] };
+  const url = urls[0] ? cleanUrl(urls[0]) : "";
+  return { mode: "text", url, platform: url ? platformOf(url) : "" };
+}
+
+/* ================= 저장소 ================= */
+const LS = "naemoeum.notes.v1";
+let store = null, col = null, items = [];
+const local = { read(){ try { return JSON.parse(localStorage.getItem(LS) || "[]"); } catch { return []; } }, write(a){ try { localStorage.setItem(LS, JSON.stringify(a)); return true; } catch { return false; } } };
+function normalize(d){
+  const url = d.url || d.source || "";
+  const type = d.type || (d.from === "image" ? "image" : (d.text ? "text" : typeOfUrl(url)));
+  return { ...d, url, type, platform: d.platform || (url ? platformOf(url) : (type === "image" ? "스크린샷" : "직접 입력")),
+    savedFrom: LEGACY_FROM[d.savedFrom] || d.savedFrom || "직접 입력", tags: Array.isArray(d.tags) ? d.tags : [], summary: Array.isArray(d.summary) ? d.summary : [], topic: d.topic || "" };
+}
+async function waitClaude(){ for (let i = 0; i < 15 && !(window.claude && window.claude.use); i++) await new Promise(r => setTimeout(r, 100)); return window.claude && window.claude.use ? window.claude : null; }
+function useLocal(msg){ store = "local"; items = local.read().map(normalize); $("#store-note").textContent = msg || "이 브라우저에만 저장됩니다. 다른 기기에서는 보이지 않습니다."; render(); }
+async function initStore(){
+  const c = await waitClaude(); if (!c){ useLocal(); return; }
+  const [db, user] = await Promise.all([c.use("db").catch(() => null), c.use("user").catch(() => null)]);
+  const uid = user ? await user.id().catch(() => null) : null;
+  if (!db || !uid){ useLocal(); return; }
+  store = "db"; col = db.collection("data/users/" + uid);
+  $("#store-note").textContent = "내 계정에 저장됩니다. 다른 사람에게는 보이지 않습니다.";
+  col.onSnapshot(snap => { items = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.kind === "note").map(normalize); render(); },
+    () => useLocal("계정 저장소에 연결하지 못해 이 브라우저에 저장합니다."));
+}
+const knownKeys = () => new Set(items.filter(i => i.url).map(i => urlKey(i.url)));
+async function addItems(list, onStep){
+  const now = Date.now(); let done = 0;
+  const docs = list.map((x, i) => ({ kind: "note", type: x.type, url: x.url || "", platform: x.platform || "", title: x.title || "", text: x.text || "",
+    tags: x.tags || [], topic: x.topic || "", summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
+    savedAt: x.savedAt || "", createdAt: new Date(now - i).toISOString() }));
+  if (store === "db"){
+    // 동시에 4개씩 저장 (문서가 서로 달라 겹치지 않음)
+    let idx = 0; const ids = [];
+    const worker = async () => { while (idx < docs.length){ const d = docs[idx++]; const ref = col.doc(); await ref.set(d); ids.push(ref.id); onStep && onStep(++done, docs.length); } };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    return ids;
+  }
+  const withIds = docs.map((d, i) => ({ id: "n" + (now + i).toString(36) + Math.random().toString(36).slice(2, 6), ...d }));
+  items = withIds.map(normalize).concat(items); if (!local.write(items)) toast("브라우저 저장이 막혀 있어 새로고침하면 사라집니다.");
+  onStep && onStep(docs.length, docs.length); render(); return withIds.map(d => d.id);
+}
+async function updateItem(id, patch){
+  if (store === "db"){ await col.doc(id).update(patch); return; }
+  items = items.map(i => i.id === id ? normalize({ ...i, ...patch }) : i); local.write(items); render();
+}
+async function removeItem(id){
+  if (store === "db"){ await col.doc(id).delete(); return; }
+  items = items.filter(i => i.id !== id); local.write(items); render();
+}
+
+/* ================= 담기: 붙여넣기 ================= */
+function fillSelect(sel, value){ sel.textContent = ""; FROM_OPTIONS.forEach(o => sel.append(el("option", { value: o, text: o }))); sel.value = value || "직접 입력"; }
+fillSelect($("#from")); fillSelect($("#import-from"));
+const EXAMPLE = `테스트 자동화 입문 강의
+https://youtu.be/dQw4w9WgXcQ?si=abc123
+연남동 조용한 카페 https://map.naver.com/p/entry/place/1234567890
+https://blog.naver.com/example/223456789`;
+let isExample = true, current = { mode: "empty", items: [] }, fromImage = false;
+function refreshDetect(){
+  const raw = $("#raw").value; current = analyze(raw);
+  const box = $("#detect"); box.textContent = "";
+  $("#text-mode").hidden = current.mode !== "text";
+  const known = knownKeys();
+  if (current.mode === "empty"){ box.append(el("span", { class: "note", text: "아직 아무것도 없습니다. 링크나 글을 붙여넣어 보세요." })); }
+  else if (current.mode === "links"){
+    const fresh = current.items.filter(i => !known.has(urlKey(i.url))).length;
+    box.append(el("span", { class: "note", text: `${current.items.length}개 찾음${fresh < current.items.length ? ` · 이미 담긴 ${current.items.length - fresh}개는 건너뜀` : ""}` }));
+    current.items.slice(0, 60).forEach(i => box.append(el("div", { class: "d-item" },
+      el("span", { class: "kind k-" + i.type, text: TYPE_LABEL[i.type] }), el("span", { class: "stats", text: i.platform }),
+      el("span", { class: "t", text: (i.title || i.url) + (i.type === "place" && i.text ? " · " + i.text.split("\n")[0] : "") }), known.has(urlKey(i.url)) ? el("span", { class: "dup", text: "담겨 있음" }) : null)));
+    // 저장했던 곳 추정
+    const ps = current.items.map(i => i.platform);
+    if ($("#from").dataset.touched !== "1"){ $("#from").value = !ps.length ? "직접 입력" : current.items.every(i => i.type === "place") ? "네이버 지도" : ps.every(p => p === "YouTube") ? "유튜브 재생목록" : ps.every(p => p === "Instagram") ? "인스타그램" : ps.some(p => p === "네이버 Keep") ? "네이버 Keep" : "직접 입력"; }
+  } else {
+    const ty = fromImage ? "image" : "text";
+    box.append(el("div", { class: "d-item" }, el("span", { class: "kind k-" + ty, text: TYPE_LABEL[ty] }),
+      el("span", { class: "t", text: current.url ? `${current.platform}에서 온 글` : (fromImage ? "이미지에서 읽은 글" : "직접 붙여넣은 글") })));
+    if (current.url) box.append(el("span", { class: "stats", text: current.url }));
+    retidy();
+  }
+  $("#save").textContent = current.mode === "links" ? `${current.items.filter(i => !known.has(urlKey(i.url))).length}개 담기` : "담기";
+  $("#save").disabled = current.mode === "empty" || (current.mode === "links" && !current.items.some(i => !known.has(urlKey(i.url))));
+}
+function retidy(){
+  // 출처로 쓴 링크는 본문에서 빼고, 그 앞의 "출처:" 같은 말도 함께 뺀다
+  const raw = $("#raw").value.replace(/(?:(?:출처|원문|링크|source|via)\s*[:：]?\s*)?(https?:\/\/[^\s<>"'`)\]}]+[^\s<>"'`)\]}.,;:!?。、])/gi, (all, m) => current.url && cleanUrl(m) === current.url ? "" : all); $("#out").value = tidy(raw, tidyOpts()); updateStats(); }
+function updateStats(){ const v = $("#out").value.trim(); $("#stats").textContent = v ? `· ${v.replace(/\s/g, "").length.toLocaleString()}자` : ""; }
+["#o-join", "#o-dedup", "#o-noise", "#o-split"].forEach(id => $(id).addEventListener("change", retidy));
+$("#out").addEventListener("input", updateStats);
+$("#from").addEventListener("change", () => { $("#from").dataset.touched = "1"; });
+function setRaw(text, opt = {}){
+  $("#raw").value = text; isExample = !!opt.example; fromImage = !!opt.image; $("#raw-note").hidden = !isExample;
+  if (!opt.keepMeta){ $("#title").value = ""; $("#tags").value = ""; $("#from").dataset.touched = ""; }
+  refreshDetect();
+}
+setRaw(EXAMPLE, { example: true });
+let rawT;
+$("#raw").addEventListener("focus", () => { if (isExample) $("#raw").select(); });
+$("#raw").addEventListener("input", () => { if (isExample){ isExample = false; $("#raw-note").hidden = true; } clearTimeout(rawT); rawT = setTimeout(refreshDetect, 150); });
+$("#raw").addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); $("#save").click(); } });
+$("#raw-clear").addEventListener("click", () => { setRaw(""); $("#raw").focus(); });
+const parseTags = s => [...new Set(String(s || "").split(/[,#\n]/).map(x => x.trim()).filter(Boolean))].slice(0, 12);
+
+$("#save").addEventListener("click", async () => {
+  if (isExample){ toast("예시입니다. 내 링크나 글을 붙여넣어 주세요."); $("#raw").focus(); $("#raw").select(); return; }
+  const tags = parseTags($("#tags").value), savedFrom = $("#from").value;
+  let list = [];
+  if (current.mode === "links"){
+    const known = knownKeys();
+    list = current.items.filter(i => !known.has(urlKey(i.url))).map(i => ({ ...i, title: i.title || defaultTitle(i.url), tags, savedFrom }));
+  } else if (current.mode === "text"){
+    const text = $("#out").value.trim(); if (!text) return toast("담을 글이 없습니다.");
+    list = [{ type: fromImage ? "image" : "text", url: current.url, platform: current.url ? current.platform : (fromImage ? "스크린샷" : "직접 입력"), title: $("#title").value.trim() || firstSentence(text), text, tags, savedFrom }];
+  }
+  if (!list.length) return;
+  const btn = $("#save"); btn.disabled = true; btn.textContent = "담는 중…";
+  try {
+    const ids = await addItems(list);
+    toast(`${list.length}개를 담았습니다.`);
+    setRaw("");
+    if (sampleApi && $("#ai-on").checked) classify(ids.map((id, i) => ({ id, ...list[i] })));
+  } catch (e){ toast(e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다. 안 쓰는 항목을 지워 주세요." : "담지 못했습니다. 다시 눌러 주세요."); }
+  finally { btn.disabled = false; refreshDetect(); }
+});
+
+/* ================= 탭 ================= */
+const TABS = ["paste", "img", "file"];
+function showTab(which){ TABS.forEach(t => { $("#tab-" + t).setAttribute("aria-selected", String(t === which)); $("#pane-" + t).hidden = t !== which; }); }
+TABS.forEach(t => $("#tab-" + t).addEventListener("click", () => showTab(t)));
+
+/* ================= 이미지 → 글자 ================= */
+let sampleApi = null, ocrWorkerP = null; const queue = []; let busy = false; let imageTexts = [];
+function getWorker(onProgress){
+  if (!window.Tesseract) return Promise.reject(new Error("글자 읽기 엔진을 불러오지 못했습니다."));
+  if (!ocrWorkerP){
+    // 언어 데이터는 페이지와 함께 올린 파일(lang/*.traineddata.wasm, gzip 그대로)에서 읽는다.
+    // 엔진 워커가 요청하는 주소를 그 파일로 돌려 주는 작은 워커 스크립트를 앞에 붙인다.
+    const base = new URL("lang/", document.baseURI).href;
+    const boot = `const B=${JSON.stringify(base)},F=self.fetch.bind(self);` +
+      `self.fetch=(u,o)=>{const m=String(u).match(/^https:\\/\\/naemoeum-lang\\.invalid\\/(\\w+)\\.traineddata/);return F(m?B+m[1]+".traineddata.wasm":u,o)};` +
+      `importScripts("https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js");`;
+    const workerPath = URL.createObjectURL(new Blob([boot], { type: "application/javascript" }));
+    ocrWorkerP = Tesseract.createWorker(["kor", "eng"], 1, { workerPath, workerBlobURL: false, langPath: "https://naemoeum-lang.invalid", gzip: false, cacheMethod: "none", logger: m => onProgress && onProgress(m) })
+      .then(async w => { await w.setParameters({ preserve_interword_spaces: "1" }); return w; })
+      .catch(e => { ocrWorkerP = null; throw e; });
+  }
+  return ocrWorkerP;
+}
+let currentProgress = null;
+function addImages(files){
+  const imgs = [...files].filter(f => /^image\//.test(f.type));
+  if (!imgs.length){ toast("이미지 파일만 읽을 수 있습니다."); return; }
+  showTab("img"); if (!fromImage) imageTexts = [];
+  for (const f of imgs){
+    const fig = el("figure", {}, el("img", { alt: f.name || "붙여넣은 이미지", src: URL.createObjectURL(f) }), el("div", { class: "bar" }, el("i")), el("figcaption", { text: "대기 중" }));
+    $("#thumbs").append(fig); queue.push({ file: f, fig });
+  }
+  runOcr();
+}
+async function runOcr(){
+  if (busy) return; busy = true;
+  while (queue.length){
+    const { file, fig } = queue.shift(); const cap = $("figcaption", fig), bar = $(".bar i", fig);
+    try {
+      let text = "";
+      if ($("#engine").value === "ai" && sampleApi){
+        cap.textContent = "AI가 읽는 중"; bar.style.width = "40%";
+        const r = await sampleApi.json("첨부 이미지는 사용자가 웹서핑 중 찍은 스크린샷입니다. 이미지 안의 본문 글자를 원문 그대로 추출하세요. 번역·요약·의견은 넣지 말고, 메뉴·버튼·광고처럼 본문이 아닌 글자는 빼세요. 문단은 빈 줄로 구분하고, 보이는 URL은 그대로 적으세요. JSON으로만 답하세요: {\"text\": \"추출한 글\"}", { images: file, modelTier: "quick" });
+        text = String(r && r.text || "");
+      } else {
+        cap.textContent = "엔진 준비 중";
+        currentProgress = m => { if (m.status === "recognizing text"){ cap.textContent = `읽는 중 ${Math.round(m.progress * 100)}%`; bar.style.width = (m.progress * 100) + "%"; } };
+        const w = await getWorker(m => currentProgress && currentProgress(m));
+        cap.textContent = "읽는 중";
+        text = (await w.recognize(file)).data.text || "";
+      }
+      bar.style.width = "100%";
+      const n = text.replace(/\s/g, "").length; cap.textContent = n ? `${n}자 읽음` : "글자 없음"; cap.className = n ? "done" : "err";
+      if (n){ imageTexts.push(text.trim()); setRaw(imageTexts.join("\n\n"), { image: true }); }
+    } catch (e){ cap.textContent = "읽기 실패"; cap.className = "err"; $("#ocr-note").textContent = errMsg(e); $("#ocr-note").className = "note warn"; }
+  }
+  busy = false;
+  if (imageTexts.length){ showTab("paste"); toast("읽은 글을 붙여넣기 칸으로 옮겼습니다."); }
+}
+function errMsg(e){
+  const c = e && e.code;
+  if (c === "not_granted") return "AI 사용을 허용하지 않아 AI 기능을 쓸 수 없습니다.";
+  if (c === "rate_limited") return "AI 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.";
+  if (c === "image_rejected") return "AI가 이 이미지를 열 수 없습니다. 20MB 이하 PNG·JPG·WebP로 올려 주세요.";
+  return e && e.message ? "실패했습니다: " + e.message : "실패했습니다. 다시 시도해 주세요.";
+}
+function wireDrop(zone, input, onFiles){
+  zone.addEventListener("click", () => input.click());
+  zone.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); input.click(); } });
+  input.addEventListener("change", () => { const fs = [...input.files]; input.value = ""; onFiles(fs); });
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("over"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+  zone.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); zone.classList.remove("over"); if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files); });
+}
+wireDrop($("#drop"), $("#file"), addImages);
+wireDrop($("#drop-file"), $("#file-import"), importFiles);
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault(); const fs = [...(e.dataTransfer?.files || [])]; if (!fs.length) return;
+  if (fs.every(f => /^image\//.test(f.type))) addImages(fs); else importFiles(fs);
+});
+// 웹페이지(유튜브 재생목록, 네이버 Keep 등)를 통째로 복사해 붙여넣으면 그 안의 링크와 제목을 뽑는다
+function linksFromHtml(html, plain){
+  if (!html || !/<a\s/i.test(html)) return null;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  let as = [...doc.querySelectorAll("a[href]")].map(a => {
+    let h = a.getAttribute("href") || ""; if (/^\/(watch|shorts|playlist)\b/.test(h)) h = "https://www.youtube.com" + h;
+    return { href: h, label: (a.textContent || a.getAttribute("title") || a.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim() };
+  }).filter(a => /^https?:\/\//.test(a.href));
+  if (as.length < 3) return null;
+  const vids = as.filter(a => ytId(a.href));
+  if (vids.length >= 3) as = vids;
+  const anchorText = as.reduce((n, a) => n + a.label.length, 0);
+  if (vids.length < 3 && anchorText < (plain || "").length * 0.35) return null;
+  const best = new Map();
+  for (const a of as){ const k = urlKey(a.href); const cur = best.get(k); if (!cur || a.label.length > cur.label.length) best.set(k, a); }
+  return [...best.values()].map(a => (a.label ? a.label.slice(0, 160) + " " : "") + a.href).join("\n");
+}
+document.addEventListener("paste", e => {
+  {
+    const a = document.activeElement, inOther = /^(INPUT|TEXTAREA|SELECT)$/.test(a?.tagName || "") && a !== $("#raw");
+    const list = !inOther && linksFromHtml(e.clipboardData?.getData("text/html"), e.clipboardData?.getData("text/plain"));
+    if (list){ e.preventDefault(); showTab("paste"); setRaw(list); toast("붙여넣은 페이지에서 링크를 뽑았습니다."); return; }
+  }
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && /^image\//.test(i.type)).map(i => i.getAsFile()).filter(Boolean);
+  if (files.length){ e.preventDefault(); addImages(files); return; }
+  const t = e.clipboardData?.getData("text/plain"); if (!t) return;
+  const a = document.activeElement, inField = /^(INPUT|TEXTAREA|SELECT)$/.test(a?.tagName || "");
+  if ((!inField) || (a === $("#raw") && isExample)){ e.preventDefault(); showTab("paste"); setRaw(t); }
+});
+
+/* ================= 저장 목록 파일 가져오기 ================= */
+let pending = [];
+function parseBookmarksHtml(html){
+  const doc = new DOMParser().parseFromString(html, "text/html"); const out = [];
+  const walk = (dl, path) => {
+    for (const dt of [...dl.children].filter(n => n.tagName === "DT")){
+      const a = [...dt.children].find(n => n.tagName === "A"), h3 = [...dt.children].find(n => n.tagName === "H3"), sub = [...dt.children].find(n => n.tagName === "DL");
+      if (a && /^https?:/i.test(a.getAttribute("href") || "")){ const add = +a.getAttribute("add_date"); out.push({ url: a.getAttribute("href"), title: a.textContent.trim(), tags: path.filter(p => !/^(북마크바|북마크 바|기타 북마크|모바일 북마크|Bookmarks bar|Other bookmarks|Mobile bookmarks|Bookmarks|북마크)$/i.test(p)).slice(-2), savedAt: add ? new Date(add * 1000).toISOString() : "" }); }
+      if (h3 && sub) walk(sub, path.concat(h3.textContent.trim()));
+      else if (sub) walk(sub, path);
+    }
+  };
+  const top = doc.querySelector("dl"); if (top) walk(top, []);
+  if (!out.length) doc.querySelectorAll("a[href^=http]").forEach(a => out.push({ url: a.href, title: a.textContent.trim() }));
+  return out;
+}
+function parseJson(text){
+  const out = []; let data; try { data = JSON.parse(text); } catch { return null; }
+  const walk = (v, ctx) => {
+    if (Array.isArray(v)){ v.forEach(x => walk(x, ctx)); return; }
+    if (v && typeof v === "object"){
+      const title = ["title", "name", "caption", "text", "value"].map(k => typeof v[k] === "string" && !/^https?:/.test(v[k]) ? v[k] : "").find(Boolean) || ctx;
+      const ts = ["timestamp", "time", "created", "saved_on", "date"].map(k => v[k]).find(x => x != null);
+      for (const [k, x] of Object.entries(v)){
+        if (typeof x === "string" && /^https?:\/\//.test(x)) out.push({ url: x, title: title || "", savedAt: ts ? toIso(ts) : "" });
+        else walk(x, title || ctx);
+      }
+    }
+  };
+  walk(data, ""); return out;
+}
+function toIso(ts){ const n = Number(ts); const d = isNaN(n) ? new Date(ts) : new Date(n < 1e12 ? n * 1000 : n); return isNaN(d) ? "" : d.toISOString(); }
+function csvRows(text){
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (q){ if (ch === '"'){ if (text[i + 1] === '"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ","){ row.push(cell.trim()); cell = ""; }
+    else if (ch === "\n" || ch === "\r"){ if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell.trim()); rows.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  if (cell || row.length){ row.push(cell.trim()); rows.push(row); }
+  return rows.filter(r => r.some(Boolean));
+}
+function parseCsv(text){
+  const rows = csvRows(text.replace(/^﻿/, ""));
+  const col = (hdr, re) => hdr.findIndex(c => re.test(c));
+  // 유튜브 테이크아웃 재생목록: Video ID 열
+  const hi = rows.findIndex(r => col(r, /^(video id|동영상 id)$/i) >= 0);
+  if (hi >= 0){
+    const idx = col(rows[hi], /^(video id|동영상 id)$/i), ti = col(rows[hi], /timestamp|타임스탬프|시간/i);
+    return { kind: "youtube", items: rows.slice(hi + 1).filter(r => /^[\w-]{11}$/.test(r[idx] || "")).map(r => ({ url: "https://www.youtube.com/watch?v=" + r[idx], title: "", savedAt: ti >= 0 ? toIso(r[ti]) : "" })) };
+  }
+  // 구글 지도 저장 목록(테이크아웃 '저장됨' 폴더): Title, Note, URL
+  const h = rows[0] || [], ui = col(h, /^(url|링크)$/i);
+  if (ui >= 0){
+    const tI = col(h, /^(title|제목|이름)$/i), nI = col(h, /^(note|메모)$/i), cI = col(h, /^(comment|댓글)$/i);
+    return { kind: "csv", items: rows.slice(1).filter(r => /^https?:\/\//.test(r[ui] || "")).map(r => ({ url: r[ui], title: tI >= 0 ? r[tI] : "", text: [nI >= 0 ? r[nI] : "", cI >= 0 ? r[cI] : ""].filter(Boolean).join("\n") })) };
+  }
+  return null;
+}
+// 구글 지도 '저장된 장소.json'(GeoJSON): features[].properties.{google_maps_url, location.name/address, date}
+function parseGeoJson(data){
+  if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) return null;
+  return data.features.map(f => {
+    const p = f.properties || {}, loc = p.location || p.Location || {};
+    const url = p.google_maps_url || p["Google Maps URL"] || "";
+    const coords = f.geometry && Array.isArray(f.geometry.coordinates) ? f.geometry.coordinates : null;
+    const fallback = coords && (coords[0] || coords[1]) ? `https://www.google.com/maps/search/?api=1&query=${coords[1]},${coords[0]}` : "";
+    return { type: "place", url: url || fallback, title: loc.name || loc["Business Name"] || p.Title || loc.address || (p.Comment ? String(p.Comment).slice(0, 40) : "") || "이름 없는 장소", text: [loc.address || loc.Address || "", p.Comment || ""].filter(Boolean).join("\n"), savedAt: p.date || p.Published ? toIso(p.date || p.Published) : "" };
+  }).filter(x => x.url);
+}
+function parseLoose(text){
+  const out = [];
+  for (const line of text.split(/\r?\n/)){ const found = line.match(URL_RE); if (!found) continue; const label = line.replace(URL_RE, "").replace(/^[\s\-•·*,;|:"]+|[\s\-•·*,;|:"]+$/g, "").trim(); found.forEach(u => out.push({ url: u, title: found.length === 1 ? label.slice(0, 160) : "" })); }
+  return out;
+}
+async function importFiles(files){
+  showTab("file"); let found = []; let guess = "";
+  for (const f of files){
+    const text = await f.text(); const name = (f.name || "").toLowerCase(); let r = null;
+    if (/\.html?$/.test(name) || /<!DOCTYPE NETSCAPE-Bookmark/i.test(text)){ r = parseBookmarksHtml(text); if (/NETSCAPE-Bookmark/i.test(text)) guess = "크롬 즐겨찾기"; }
+    else if (/\.json$/.test(name)){
+      let data = null; try { data = JSON.parse(text); } catch {}
+      const geo = parseGeoJson(data);
+      if (geo){ r = geo; guess = guess || "구글 지도"; }
+      else { r = parseJson(text); if (/instagram|saved_/.test(name) || /instagram\.com/.test(text)) guess = guess || "인스타그램"; }
+    }
+    else if (/\.csv$/.test(name)){
+      const c = parseCsv(text);
+      if (c){ r = c.items; if (c.kind === "youtube") guess = guess || "유튜브 재생목록"; else if (c.items.some(x => /google\.[a-z.]+\/maps|maps\.google|goo\.gl/.test(x.url))){ guess = guess || "구글 지도";
+          // 구글 지도 저장 목록은 파일 이름이 목록 이름(예: 가고 싶은 곳.csv) → 태그로
+          const list = (f.name || "").replace(/\.csv$/i, "").trim(); if (list) r = r.map(x => ({ ...x, type: "place", tags: [list] })); } }
+    }
+    if (!r) r = parseLoose(text);
+    found = found.concat(r);
+  }
+  const seen = knownKeys(), mine = new Set(); let dup = 0;
+  pending = [];
+  for (const x of found){
+    const url = cleanUrl(x.url); const k = urlKey(url);
+    if (mine.has(k)) continue; mine.add(k);
+    if (seen.has(k)){ dup++; continue; }
+    pending.push({ type: x.type || typeOfUrl(url), url, platform: platformOf(url), title: (x.title || "").slice(0, 200) || defaultTitle(url), text: (x.text || "").slice(0, 2000), tags: (x.tags || []).slice(0, 4), savedAt: x.savedAt || "" });
+  }
+  if (guess) $("#import-from").value = guess;
+  const box = $("#import-preview"); box.textContent = "";
+  box.append(el("span", { class: "note", text: found.length ? `새 링크 ${pending.length}개${dup ? ` · 이미 담긴 ${dup}개는 건너뜀` : ""}` : "이 파일에서 링크를 찾지 못했습니다." }));
+  pending.slice(0, 80).forEach(i => box.append(el("div", { class: "d-item" }, el("span", { class: "kind k-" + i.type, text: TYPE_LABEL[i.type] }), el("span", { class: "stats", text: i.platform }), el("span", { class: "t", text: i.title }))));
+  if (pending.length > 80) box.append(el("span", { class: "note", text: `…외 ${pending.length - 80}개` }));
+  $("#import-go").disabled = !pending.length; $("#import-go").textContent = pending.length ? `${pending.length}개 모두 담기` : "모두 담기";
+  $("#import-note").textContent = "";
+}
+$("#import-go").addEventListener("click", async () => {
+  if (!pending.length) return;
+  const btn = $("#import-go"), prog = $("#import-progress"); btn.disabled = true; prog.hidden = false;
+  const savedFrom = $("#import-from").value; const list = pending.map(p => ({ ...p, savedFrom }));
+  try {
+    await addItems(list, (d, n) => { $("i", prog).style.width = (d / n * 100) + "%"; $("#import-note").textContent = `${d} / ${n}`; });
+    toast(`${list.length}개를 담았습니다.`); pending = []; $("#import-preview").textContent = ""; $("#import-preview").append(el("span", { class: "note", text: `${list.length}개를 서재에 담았습니다. 아래에서 'AI로 분류'를 누르면 주제를 붙입니다.` }));
+    btn.textContent = "모두 담기";
+  } catch (e){ $("#import-note").textContent = e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼습니다." : "일부를 담지 못했습니다. 다시 가져오면 빠진 것만 담습니다."; btn.disabled = false; }
+  finally { setTimeout(() => { prog.hidden = true; $("i", prog).style.width = "0"; }, 800); }
+});
+
+/* ================= AI 분류 ================= */
+let classifying = false;
+async function classify(list){
+  if (!sampleApi || classifying || !list.length) return;
+  classifying = true; const st = $("#ai-status"); st.hidden = false; st.className = "note";
+  const topics = [...new Set(items.map(i => i.topic).filter(Boolean))];
+  try {
+    for (let s = 0; s < list.length; s += 25){
+      const chunk = list.slice(s, s + 25);
+      st.textContent = `AI가 분류하는 중… ${Math.min(s + chunk.length, list.length)} / ${list.length}`;
+      const lines = chunk.map((x, i) => JSON.stringify({ i, type: TYPE_LABEL[x.type], platform: x.platform, title: x.title || "", url: x.url || "", text: (x.text || "").slice(0, 600) })).join("\n");
+      const r = await sampleApi.json(
+        "사용자가 웹에서 저장해 둔 항목들입니다. 각 항목을 내용 주제로 분류해 주세요.\n" +
+        "- topic: 한국어 2~6자의 넓은 주제 (예: 개발, 디자인, 요리, 여행, 재테크, 건강, 음악, 업무·QA, 쇼핑, 공부). 아래 '이미 쓰는 주제'에 맞는 것이 있으면 그대로 쓰고, 없을 때만 새로 만드세요.\n" +
+        "- tags: 구체적인 키워드 1~3개.\n- title: 지금 제목이 주소나 ID처럼 의미 없으면 내용을 알 수 있는 짧은 제목, 아니면 빈 문자열.\n- summary: text가 있을 때만 한 문장 요약, 없으면 빈 문자열.\n" +
+        "제목·주소만으로 내용을 알 수 없으면 topic은 '미확인'으로 하고 지어내지 마세요.\n" +
+        "이미 쓰는 주제: " + (topics.join(", ") || "(없음)") + "\n\n항목(JSON 한 줄씩):\n" + lines +
+        '\n\nJSON으로만 답하세요: {"items":[{"i":0,"topic":"","tags":[],"title":"","summary":""}]}', { modelTier: "quick" });
+      for (const o of (r && Array.isArray(r.items) ? r.items : [])){
+        const x = chunk[o.i]; if (!x || !x.id) continue;
+        const patch = { topic: String(o.topic || "미확인").slice(0, 20) };
+        const tags = [...new Set((x.tags || []).concat(Array.isArray(o.tags) ? o.tags.map(String) : []))].slice(0, 8); patch.tags = tags;
+        if (o.title && (!x.title || x.title === defaultTitle(x.url || ""))) patch.title = String(o.title).slice(0, 120);
+        if (o.summary && x.text) patch.summary = [String(o.summary)];
+        o.topic && !topics.includes(o.topic) && topics.push(o.topic);
+        try { await updateItem(x.id, patch); } catch {}
+      }
+    }
+    st.textContent = `${list.length}개에 주제를 붙였습니다.`; setTimeout(() => { st.hidden = true; }, 3000);
+  } catch (e){ st.textContent = errMsg(e); st.className = "note warn"; if (e && e.code === "not_granted"){ $("#ai-classify").hidden = true; $("#ai-on-wrap").hidden = true; } }
+  finally { classifying = false; render(); }
+}
+$("#ai-classify").addEventListener("click", () => { const todo = items.filter(i => !i.topic); if (!todo.length) return toast("모든 항목에 주제가 있습니다."); classify(todo.slice(0, 200)); });
+
+/* ================= 서재 ================= */
+const F = { type: null, platform: null, savedFrom: null, topic: null, tag: null };
+const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", tag: "태그" };
+let q = "", sort = "new"; const expanded = new Set(); let confirming = null, editing = null;
+$("#q").addEventListener("input", e => { q = e.target.value.trim(); render(); });
+$("#sort").addEventListener("change", e => { sort = e.target.value; render(); });
+const valOf = (i, k) => k === "tag" ? i.tags : [k === "topic" ? (i.topic || "분류 전") : i[k]];
+function matches(i, skip){
+  for (const k of Object.keys(F)){ if (k === skip || !F[k]) continue; if (!valOf(i, k).includes(F[k])) return false; }
+  if (q){ const ql = q.toLowerCase(); if (![i.title, i.text, i.url, i.platform, i.topic, i.savedFrom, i.tags.join(" ")].join(" ").toLowerCase().includes(ql)) return false; }
+  return true;
+}
+function countsFor(k){
+  const m = new Map(); items.filter(i => matches(i, k)).forEach(i => valOf(i, k).forEach(v => v && m.set(v, (m.get(v) || 0) + 1)));
+  let arr = [...m.entries()].sort((a, b) => b[1] - a[1]);
+  if (k === "type") arr = ["video", "place", "link", "text", "image"].filter(t => m.has(t)).map(t => [t, m.get(t)]);
+  if (k === "tag") arr = arr.slice(0, 16);
+  return arr;
+}
+function renderFilters(){
+  const box = $("#filters"); box.textContent = "";
+  for (const k of ["type", "platform", "topic", "savedFrom", "tag"]){
+    const arr = countsFor(k); if (!arr.length && !F[k]) continue;
+    const ul = el("ul");
+    arr.forEach(([v, n]) => ul.append(el("li", {}, el("button", { class: "fbtn", type: "button", "aria-pressed": String(F[k] === v), onclick: () => { F[k] = F[k] === v ? null : v; render(); } },
+      k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: k === "tag" ? "#" + v : v }), el("span", { class: "stats", text: String(n) })))));
+    box.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: FLABEL[k] }), ul));
+  }
+  const af = $("#active-filters"); af.textContent = ""; const on = Object.keys(F).filter(k => F[k]);
+  af.hidden = !on.length;
+  if (on.length){ af.append("걸러 보는 중:"); on.forEach(k => af.append(el("button", { type: "button", onclick: () => { F[k] = null; render(); }, text: `${FLABEL[k]} · ${k === "type" ? TYPE_LABEL[F[k]] : F[k]} ✕` }))); af.append(el("button", { type: "button", text: "모두 해제", onclick: () => { Object.keys(F).forEach(k => F[k] = null); render(); } })); }
+}
+function fmtDate(iso){ const d = new Date(iso); if (isNaN(d)) return ""; const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`; }
+function hl(node, text, needle){
+  text = String(text || ""); if (!needle){ node.textContent = text; return node; }
+  const lower = text.toLowerCase(), nl = needle.toLowerCase(); let i = 0, j;
+  while ((j = lower.indexOf(nl, i)) !== -1){ node.append(text.slice(i, j), el("mark", { text: text.slice(j, j + needle.length) })); i = j + needle.length; }
+  node.append(text.slice(i)); return node;
+}
+const safeHref = u => /^https?:\/\//i.test(u || "") ? u : null;
+function visible(){
+  const vs = items.filter(i => matches(i));
+  const t = i => i.createdAt || "";
+  return vs.sort(sort === "old" ? (a, b) => t(a).localeCompare(t(b)) : sort === "title" ? (a, b) => (a.title || "").localeCompare(b.title || "", "ko") : (a, b) => t(b).localeCompare(t(a)));
+}
+function card(n){
+  const c = el("article", { class: "card" + (editing === n.id ? " editing" : "") });
+  const href = safeHref(n.url);
+  c.append(el("div", { class: "head" }, el("span", { class: "kind k-" + n.type, text: TYPE_LABEL[n.type] || "링크" }), el("span", { class: "src", text: n.platform + (n.url && n.platform !== hostOf(n.url) && hostOf(n.url) ? " · " + hostOf(n.url) : "") })));
+  const title = el("h3", { class: "title" });
+  if (href) title.append(hl(el("a", { href, target: "_blank", rel: "noopener" }), n.title || defaultTitle(n.url), q)); else hl(title, n.title || firstSentence(n.text || ""), q);
+  c.append(title);
+  if (editing === n.id){ c.append(editForm(n)); return c; }
+  if (n.summary.length) c.append(el("ul", { class: "sum" }, n.summary.map(s => el("li", { text: s }))));
+  if (n.text){ c.append(hl(el("p", { class: "body" + (expanded.has(n.id) ? "" : " clamp") }), n.text, q)); }
+  const chips = el("div", { class: "chips" });
+  if (n.topic) chips.append(el("button", { class: "chip topic", type: "button", text: n.topic, title: "이 주제만 보기", onclick: () => { F.topic = n.topic; render(); } }));
+  n.tags.forEach(t => chips.append(el("button", { class: "chip tag", type: "button", text: "#" + t, onclick: () => { F.tag = t; render(); } })));
+  if (chips.children.length) c.append(chips);
+  const act = el("div", { class: "actions" });
+  const mk = (label, fn, cls) => act.append(el("button", { type: "button", class: "btn ghost" + (cls ? " " + cls : ""), text: label, onclick: fn }));
+  if (n.text && (n.text.length > 180 || n.text.split("\n").length > 4)) mk(expanded.has(n.id) ? "접기" : "펼치기", () => { expanded.has(n.id) ? expanded.delete(n.id) : expanded.add(n.id); render(); });
+  mk("복사", () => copyText([n.title, n.url, n.text].filter(Boolean).join("\n")));
+  mk("편집", () => { editing = n.id; confirming = null; render(); });
+  if (confirming === n.id){ act.append(el("span", { class: "confirm", text: "지울까요?" })); mk("지우기", async () => { confirming = null; try { await removeItem(n.id); toast("지웠습니다."); } catch { toast("지우지 못했습니다."); } }, "danger"); mk("취소", () => { confirming = null; render(); }); }
+  else mk("삭제", () => { confirming = n.id; render(); }, "danger");
+  c.append(el("div", { class: "foot" }, el("span", { class: "when", text: `${n.savedFrom} · ${fmtDate(n.savedAt || n.createdAt)}` }), act));
+  return c;
+}
+function editForm(n){
+  const f = el("form", { class: "stack" });
+  const field = (label, input) => el("label", {}, label, input);
+  const iTitle = el("input", { type: "text", id: "e-title", value: n.title || "" });
+  const iUrl = el("input", { type: "text", id: "e-url", value: n.url || "" });
+  const iTopic = el("input", { type: "text", id: "e-topic", value: n.topic || "", list: "topic-list" });
+  const iTags = el("input", { type: "text", id: "e-tags", value: n.tags.join(", ") });
+  const iFrom = el("select", { id: "e-from" }); fillSelect(iFrom, n.savedFrom); if (!FROM_OPTIONS.includes(n.savedFrom)) iFrom.append(el("option", { value: n.savedFrom, text: n.savedFrom, selected: true }));
+  const iType = el("select", { id: "e-type" }); Object.entries(TYPE_LABEL).forEach(([v, l]) => iType.append(el("option", { value: v, text: l, selected: v === n.type })));
+  const iText = el("textarea", { id: "e-text", rows: "5" }); iText.value = n.text || "";
+  const dl = el("datalist", { id: "topic-list" }, [...new Set(items.map(i => i.topic).filter(Boolean))].map(t => el("option", { value: t })));
+  f.append(el("div", { class: "edit-grid" }, field("제목", iTitle), field("주소", iUrl), field("주제", iTopic), field("태그 (쉼표)", iTags), field("저장했던 곳", iFrom), field("종류", iType)), dl, field("내용·메모", iText));
+  f.append(el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", text: "저장" }), el("button", { class: "btn ghost", type: "button", text: "취소", onclick: () => { editing = null; render(); } })));
+  f.addEventListener("submit", async e => {
+    e.preventDefault(); const url = iUrl.value.trim() ? cleanUrl(iUrl.value) : "";
+    const patch = { title: iTitle.value.trim(), url, platform: url ? platformOf(url) : n.platform, topic: iTopic.value.trim(), tags: parseTags(iTags.value), savedFrom: iFrom.value, type: iType.value, text: iText.value.trim() };
+    try { await updateItem(n.id, patch); editing = null; render(); toast("고쳤습니다."); } catch { toast("저장하지 못했습니다."); }
+  });
+  return f;
+}
+function render(){
+  renderFilters();
+  const list = $("#list"); list.textContent = "";
+  $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
+  const untopiced = items.filter(i => !i.topic).length;
+  $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
+  if (!items.length){
+    list.append(el("div", { class: "empty" }, el("b", { text: "아직 담은 것이 없습니다." }), el("br"),
+      "위 '담기'에 링크나 글을 붙여넣거나, 크롬 북마크·유튜브·인스타 내보내기 파일을 가져오세요. 담은 것은 여기서 종류(영상·링크·글·이미지), 출처, 주제, 저장했던 곳별로 나눠 볼 수 있습니다."));
+    return;
+  }
+  const vs = visible();
+  if (!vs.length){ list.append(el("div", { class: "empty", text: "조건에 맞는 항목이 없습니다. 검색어나 걸러 보기를 풀어 보세요." })); return; }
+  vs.slice(0, shown).forEach(n => list.append(card(n)));
+  if (vs.length > shown) list.append(el("div", { class: "empty", style: "text-align:center" }, el("button", { class: "btn", type: "button", text: `${vs.length - shown}개 더 보기`, onclick: () => { shown += 60; render(); } })));
+}
+let shown = 60;
+
+/* ================= 복사·내보내기 ================= */
+async function copyText(t, okMsg){
+  try { await navigator.clipboard.writeText(t); toast(okMsg || "복사했습니다."); }
+  catch { const ta = el("textarea"); ta.value = t; document.body.append(ta); ta.select(); try { document.execCommand("copy"); toast(okMsg || "복사했습니다."); } catch { toast("복사하지 못했습니다. 직접 선택해 복사해 주세요."); } ta.remove(); }
+}
+function asMd(n){
+  const head = n.url ? `- [${(n.title || defaultTitle(n.url)).replace(/[\[\]]/g, "")}](${n.url})` : `- ${n.title || firstSentence(n.text || "")}`;
+  const meta = [TYPE_LABEL[n.type], n.platform, n.topic, n.savedFrom, fmtDate(n.savedAt || n.createdAt)].filter(Boolean).join(" · ") + (n.tags.length ? " " + n.tags.map(t => "#" + t).join(" ") : "");
+  return head + `\n  ${meta}` + (n.text ? "\n  > " + n.text.replace(/\n/g, "\n  > ") : "");
+}
+function exportMd(vs){
+  const groups = new Map(); vs.forEach(n => { const k = n.topic || "분류 전"; groups.has(k) || groups.set(k, []); groups.get(k).push(n); });
+  return "# 내모음\n\n" + [...groups.entries()].map(([k, arr]) => `## ${k} (${arr.length})\n\n` + arr.map(asMd).join("\n")).join("\n\n") + "\n";
+}
+$("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.length) return toast("복사할 항목이 없습니다."); copyText(exportMd(vs), `${vs.length}개를 마크다운으로 복사했습니다.`); });
+
+/* ================= 선택 기능 ================= */
+(async () => {
+  const c = await waitClaude();
+  if (!c){
+    // 일반 웹(예: Vercel)에서는 브라우저가 바로 파일을 내려받는다
+    $("#dl-all").hidden = false;
+    $("#dl-all").addEventListener("click", () => {
+      const vs = visible(); if (!vs.length) return toast("받을 항목이 없습니다.");
+      const a = el("a", { href: URL.createObjectURL(new Blob([exportMd(vs)], { type: "text/markdown" })), download: `내모음-${new Date().toISOString().slice(0, 10)}.md` });
+      document.body.append(a); a.click(); a.remove();
+    });
+    return;
+  }
+  c.use("sample").then(async s => {
+    if (!s) return; sampleApi = s;
+    $("#ai-classify").hidden = false; $("#ai-on-wrap").hidden = false;
+    const lim = await s.limits().catch(() => null); if (lim && lim.images) $("#engine option[value=ai]").disabled = false;
+  }).catch(() => {});
+  c.use("downloads").then(d => {
+    if (!d) return; $("#dl-all").hidden = false;
+    $("#dl-all").addEventListener("click", async () => {
+      const vs = visible(); if (!vs.length) return toast("받을 항목이 없습니다.");
+      try { await d.save({ filename: `내모음-${new Date().toISOString().slice(0, 10)}.md`, data: exportMd(vs) }); }
+      catch (e){ if (!(e && e.code === "declined")) toast("파일을 만들지 못했습니다."); }
+    });
+  }).catch(() => {});
+})();
+render();
+initStore().catch(() => useLocal());
+})();
+</script>
+
+</body>
+</html>
