@@ -1200,7 +1200,27 @@ function nmSend(home){
   var metaIn = function(e){ return [].filter.call(e.querySelectorAll("*"), function(x){ return !x.children.length && isMeta(x.textContent); }).length; };
   var m = {}, order = [], seen = new WeakSet(), noLink = 0, firstLeaf = null;
   var add = function(u, t){ if (!(u in m)){ order.push(u); m[u] = String(t || "").slice(0, 100); } else if (!m[u] && t) m[u] = String(t).slice(0, 100); };
+  var itemUrl = function(u){ var h; if (!u) return null; try { h = new URL(u, location.href); } catch (e){ return null; }
+    if (h.hostname === "link.naver.com"){ var inner = h.searchParams.get("url") || h.searchParams.get("u") || h.searchParams.get("link") || h.searchParams.get("target"); if (inner){ try { h = new URL(inner); } catch (e){} } }
+    if (!/^https?:$/.test(h.protocol)) return null;
+    if (h.host === location.host && !/^\/viewer/.test(h.pathname)) return null;
+    return h.href; };
+  var liMode = 0;
   var collect = function(){
+    var lis = document.querySelectorAll("[class*=ActivityList_list_item]");
+    if (lis.length){
+      liMode = lis.length;
+      [].forEach.call(lis, function(li){
+        if (seen.has(li)) return;
+        var as = [].filter.call(li.querySelectorAll(LS), function(a){ return itemUrl(hrefOf(a)); });
+        if (!as.length){ if (li.querySelector("[class*=ActivityItem_title]")){ seen.add(li); noLink++; } return; }
+        seen.add(li); if (!firstLeaf) firstLeaf = li;
+        var tEl = li.querySelector("[class*=ActivityItem_title]"), t = tEl ? String(tEl.textContent || "").trim() : "";
+        if (!t) [].some.call(li.querySelectorAll("*"), function(x){ var v = String(x.textContent || "").trim(); if (!x.children.length && v.length > 1 && !isDom(v)){ t = v; return true; } return false; });
+        add(itemUrl(hrefOf(as[0])), t);
+      });
+      return;
+    }
     [].forEach.call(document.querySelectorAll("span,div,p,em,strong,dd,dt,small,a,cite"), function(leaf){
       if (seen.has(leaf) || leaf.children.length || !isMeta(leaf.textContent) || leaf.closest(BAD)) return;
       seen.add(leaf); if (!firstLeaf) firstLeaf = leaf;
@@ -1230,7 +1250,7 @@ function nmSend(home){
     var hs = {}; [].forEach.call(document.querySelectorAll("a[href]"), function(a){ var k; try { var x = new URL(a.getAttribute("href"), location.href); k = x.host + "/" + (x.pathname.split("/")[1] || ""); } catch (e){ k = "?"; } hs[k] = (hs[k] || 0) + 1; });
     var path = []; for (var e = firstLeaf, i = 0; e && i < 7; e = e.parentElement, i++){ path.push(e.tagName.toLowerCase() + "." + String(e.className || "").slice(0, 60) + " [" + [].map.call(e.attributes, function(a){ return /^(data-|href|role|onclick)/.test(a.name) ? a.name + "=" + String(a.value).slice(0, 50) : a.name; }).join(" ") + "]"); }
     d.l = order.slice(0, 3000).map(function(u){ return [m[u], u]; });
-    d.dg = { found: order.length, noLink: noLink, rounds: round, stopped: stop, anchors: document.querySelectorAll("a[href]").length, scroller: sc.tagName + "." + String(sc.className || "").slice(0, 60), hosts: hs, path: path };
+    d.dg = { liMode: liMode, found: order.length, noLink: noLink, rounds: round, stopped: stop, anchors: document.querySelectorAll("a[href]").length, scroller: sc.tagName + "." + String(sc.className || "").slice(0, 60), hosts: hs, path: path };
     msg.textContent = "내모음: " + order.length + "개를 모았어요"; btn.textContent = "내모음으로 보내기"; btn.style.background = "#7ee2a8";
     btn.onclick = function(){ var w = window.open(home + "#nm=" + encodeURIComponent(JSON.stringify(d)), "_blank"); if (!w){ alert("팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요."); return; } ov.remove(); };
   };
