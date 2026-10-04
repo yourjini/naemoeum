@@ -343,8 +343,10 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
           <div class="row" id="lib-tools">
             <button class="btn" id="fill-preview" type="button" hidden>썸네일 채우기</button>
             <button class="btn" id="ai-classify" type="button" hidden>AI로 분류</button>
+            <!-- 당장 안 써서 숨김 (2026-10-04). 다시 쓰려면 주석을 풀고 스크립트의 '보이는 것 복사·파일로 받기' 주석도 푼다.
             <button class="btn ghost" id="copy-all" type="button">보이는 것 복사</button>
             <button class="btn ghost" id="dl-all" type="button" hidden>파일로 받기</button>
+            -->
             <button class="btn ghost danger" id="sel-start" type="button">삭제</button>
           </div>
           <div class="row" id="sel-tools" hidden>
@@ -1205,19 +1207,22 @@ function exportMd(vs){
   const groups = new Map(); vs.forEach(n => { const k = n.topic || "주제 없음"; groups.has(k) || groups.set(k, []); groups.get(k).push(n); });
   return "# 내모음\n\n" + [...groups.entries()].map(([k, arr]) => `## ${k} (${arr.length})\n\n` + arr.map(asMd).join("\n")).join("\n\n") + "\n";
 }
+/* 보이는 것 복사 (버튼과 함께 숨김)
 $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.length) return toast("복사할 항목이 없습니다."); copyText(exportMd(vs), `${vs.length}개를 마크다운으로 복사했습니다.`); });
+*/
 
 /* ================= 선택 기능 ================= */
 (async () => {
   const c = await waitClaude();
   if (!c){
-    // 일반 웹(예: Vercel)에서는 브라우저가 바로 파일을 내려받는다
+    /* 파일로 받기 (버튼과 함께 숨김): 일반 웹(예: Vercel)에서는 브라우저가 바로 파일을 내려받는다
     $("#dl-all").hidden = false;
     $("#dl-all").addEventListener("click", () => {
       const vs = visible(); if (!vs.length) return toast("받을 항목이 없습니다.");
       const a = el("a", { href: URL.createObjectURL(new Blob([exportMd(vs)], { type: "text/markdown" })), download: `내모음-${new Date().toISOString().slice(0, 10)}.md` });
       document.body.append(a); a.click(); a.remove();
     });
+    */
     return;
   }
   c.use("sample").then(async s => {
@@ -1225,6 +1230,7 @@ $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.l
     $("#ai-classify").hidden = false; $("#ai-on-wrap").hidden = false;
     const lim = await s.limits().catch(() => null); if (lim && lim.images){ $("#engine option[value=ai]").disabled = false; $("#engine-wrap").hidden = false; }
   }).catch(() => {});
+  /* 파일로 받기 (버튼과 함께 숨김)
   c.use("downloads").then(d => {
     if (!d) return; $("#dl-all").hidden = false;
     $("#dl-all").addEventListener("click", async () => {
@@ -1233,6 +1239,7 @@ $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.l
       catch (e){ if (!(e && e.code === "declined")) toast("파일을 만들지 못했습니다."); }
     });
   }).catch(() => {});
+  */
 })();
 /* ================= 링크 미리보기 (웹 버전의 /api/preview) ================= */
 // 저장한 링크의 제목·썸네일·사이트 설명을 채운다. 한 번 시도한 항목은 pv=1로 표시해 다시 묻지 않는다.
