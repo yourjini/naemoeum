@@ -135,6 +135,7 @@ header.top{position:sticky;top:0;z-index:20;background:var(--paper);padding-bloc
 @media (max-width:860px){.fgroup ul{flex-direction:row;flex-wrap:wrap;gap:6px}}
 .fbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:transparent;color:var(--ink);font:14px var(--f-body);padding:5px 8px;border-radius:6px;cursor:pointer;text-align:left}
 .fbtn:hover{background:var(--soft)}
+#store-note:empty{display:none}
 .fbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .fbtn[aria-pressed="true"] .stats{color:var(--paper)}
 .fbtn.sub{padding-left:22px;font-size:13.5px;color:var(--muted)}
@@ -198,7 +199,9 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .tm-new .btn{flex:none;white-space:nowrap;padding:5px 10px}
 .fgroup li:has(.t-edit){display:flex;align-items:center;gap:2px}
 .fgroup li:has(.t-edit) .fbtn{flex:1 1 auto;min-width:0}
-.t-edit{padding:4px 6px;flex:none}
+.t-edit{padding:4px 6px;flex:none;opacity:0}
+.fgroup li:hover .t-edit,.t-edit:focus-visible,.fgroup li:has([aria-pressed="true"]) .t-edit{opacity:1}
+@media (hover:none){.t-edit{opacity:.6}}
 .t-editrow{display:flex;flex-direction:column;gap:6px;padding:4px 0}
 .t-editrow input{padding:5px 8px;font-size:14px}
 .t-editrow .btn{padding:4px 9px;font-size:13px}
@@ -665,7 +668,9 @@ async function useCloud(u){
   const note = $("#store-note"); note.textContent = "목록을 불러오는 중…";
   try { items = (await sbLoadAll()).map(normalize); sbLoadedAt = Date.now(); }
   catch { sbUser = null; useLocal("온라인 저장소에 연결하지 못해 이 브라우저에 저장합니다."); return; }
-  note.textContent = "어느 기기에서나 같은 목록이 보입니다.";
+  note.textContent = "";
+  const cloudPrefs = u.user_metadata && u.user_metadata.topicPrefs;
+  if (mergeTopicPrefs(cloudPrefs || {}) && (topicPrefs.drop.length || Object.keys(topicPrefs.rename).length)) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {});
   const who = $("#acc-who"); who.textContent = ""; who.hidden = false;
   who.append(`${u.email || "내 계정"} · `, el("button", { class: "linkbtn", type: "button", text: "로그아웃", onclick: () => sb.auth.signOut() }));
   render(); offerMove(); ruleTopicsForOld();
@@ -756,7 +761,16 @@ const STRONG = new Set(["스트레칭", "마사지"]);
 // 사용자가 지우거나 이름을 바꾼 기본 주제: 새로 저장하는 항목에도 그대로 따른다 (이 브라우저에 기억)
 const TOPIC_PREF_KEY = "naemoeum.topicPrefs.v1";
 const topicPrefs = (() => { try { const o = JSON.parse(localStorage.getItem(TOPIC_PREF_KEY) || "{}"); return { drop: o.drop || [], rename: o.rename || {} }; } catch { return { drop: [], rename: {} }; } })();
-const saveTopicPrefs = () => { try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {} };
+// 로그인했으면 계정 정보에도 같이 저장해 다른 기기에서도 같게
+const saveTopicPrefs = () => { try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {} if (store === "sb" && sb) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {}); };
+function mergeTopicPrefs(cloud){
+  if (!cloud) return false;
+  const before = JSON.stringify(topicPrefs);
+  topicPrefs.drop = [...new Set((cloud.drop || []).concat(topicPrefs.drop))];
+  topicPrefs.rename = { ...topicPrefs.rename, ...(cloud.rename || {}) };
+  try { localStorage.setItem(TOPIC_PREF_KEY, JSON.stringify(topicPrefs)); } catch {}
+  return JSON.stringify(cloud) !== JSON.stringify(topicPrefs) || before !== JSON.stringify(topicPrefs);
+}
 const RULE_NAMES = new Set(TOPIC_RULES.map(r => r[0]));
 function ruleName(t){ const seen = new Set(); while (topicPrefs.rename[t] && !seen.has(t)){ seen.add(t); t = topicPrefs.rename[t]; } return topicPrefs.drop.includes(t) ? "" : t; }
 function noteTopicRename(from, to){ for (const k of Object.keys(topicPrefs.rename)) if (topicPrefs.rename[k] === from) topicPrefs.rename[k] = to; if (RULE_NAMES.has(from)) topicPrefs.rename[from] = to; topicPrefs.drop = topicPrefs.drop.filter(x => x !== to); saveTopicPrefs(); }
@@ -1288,7 +1302,7 @@ function renderFilters(){
   order.forEach(([t, n]) => {
     if (topicEdit === t){ ul.append(topicEditRow(t)); return; }
     const li = fbtn("topic", t, n, t, t === NO_TOPIC ? "muted" : ""); ul.append(li);
-    if (F.topic === t && t !== ETC && t !== NO_TOPIC){
+    if (t !== ETC && t !== NO_TOPIC){
       const pen = el("button", { type: "button", class: "btn ghost icon-btn t-edit", "aria-label": "주제 이름 바꾸기·지우기", title: "이름 바꾸기·지우기", onclick: () => { topicEdit = t; topicDelArmed = false; render(); } });
       pen.innerHTML = PEN_SVG; li.append(pen);
     }
@@ -1388,7 +1402,7 @@ function cardTitle(t){
        .replace(/^좋아요\s*[\d.,]+[KkMm만천]?개,\s*댓글\s*[\d.,]+[KkMm만천]?개\s*-\s*/, "")
        .replace(/^[\w.]+\s*-\s*(?:[A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}년 \d{1,2}월 \d{1,2}일)\s*:\s*/, "")
        .replace(/^(?:[A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}년 \d{1,2}월 \d{1,2}일)\s*:\s*/, "")
-       .replace(/^[\w.]+ on Instagram:\s*/i, "").replace(/^Instagram의 [\w.]+님:\s*/, "");
+       .replace(/^[\w.]+ on Instagram:\s*/i, "").replace(/^Instagram의 .{1,80}?님\s*:\s*/, "").replace(/^.{1,80}? on Instagram\s*:\s*/i, "");
   s = s.replace(/^["“](.*?)(?:["”]\.?)?$/s, "$1").trim();
   return s || String(t || "").trim();
 }
