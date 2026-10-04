@@ -1440,17 +1440,20 @@ function renderFilters(){
     }
     tdet.append(sum, el("div", { class: "fgroup" }, ul)); box.append(tdet);
   }
-  const det = el("details", { class: "more-filters" }); det.open = moreOpen || (!topicOpen && ["type", "platform", "savedFrom", "tag"].some(k => F[k]));
+  // 종류·출처·저장했던 곳은 화면에서 뺐다 (2026-10-04). 다시 쓰려면 아래 MORE_KEYS에 "type", "platform", "savedFrom"을 되돌린다.
+  const MORE_KEYS = [/* "type", "platform", "savedFrom", */ "tag"];
+  const det = el("details", { class: "more-filters" }); det.open = moreOpen || (!topicOpen && MORE_KEYS.some(k => F[k]));
   tdet.addEventListener("toggle", () => { topicOpen = tdet.open; if (tdet.open && det.open){ moreOpen = false; det.open = false; } });
   det.addEventListener("toggle", () => { moreOpen = det.open; if (det.open && tdet.open){ topicOpen = false; tdet.open = false; } });
   det.append(el("summary", { text: "다른 기준" }));
-  for (const k of ["type", "platform", "savedFrom", "tag"]){
+  let moreGroups = 0;
+  for (const k of MORE_KEYS){
     let arr = countsFor(k); if (!arr.length && !F[k]) continue;
     if (k === "platform") arr = arr.slice(0, 12);
     const u2 = el("ul"); arr.forEach(([v, n]) => u2.append(fbtn(k, v, n)));
-    det.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: FLABEL[k] }), u2));
+    det.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: FLABEL[k] }), u2)); moreGroups++;
   }
-  box.append(det);
+  if (moreGroups) box.append(det); // 남는 기준이 없으면 '다른 기준' 묶음도 뺀다
   const af = $("#active-filters"); af.textContent = ""; const on = Object.keys(F).filter(k => F[k]);
   af.hidden = !on.length;
   if (on.length){ af.append("걸러 보는 중:"); on.forEach(k => af.append(el("button", { type: "button", onclick: () => { F[k] = null; if (k === "topic") F.sub = null; render(); }, text: `${FLABEL[k]} · ${k === "type" ? TYPE_LABEL[F[k]] : F[k]} ✕` }))); af.append(el("button", { type: "button", text: "모두 해제", onclick: () => { Object.keys(F).forEach(k => F[k] = null); render(); } })); }
