@@ -205,7 +205,8 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
     </div>
     <ol>
       <li><b>＋ 내모음으로 보내기</b>를 북마크바로 끌어다 놓아요.</li>
-      <li>Keep 화면에서 그 버튼을 누르고, 새 탭에서 <b>저장하기</b>를 눌러요.</li>
+      <li>Keep 화면에서 그 버튼을 누르면 목록을 끝까지 내리며 모아요.</li>
+      <li>다 모이면 나오는 <b>내모음으로 보내기</b>를 누르고, 새 탭에서 <b>저장하기</b>를 눌러요.</li>
     </ol>
     <p class="note">끌어다 놓기가 안 되면: '버튼 주소 복사' → 북마크바에서 오른쪽 클릭 → 페이지 추가 → 이름에 '내모음으로 보내기', URL에 붙여넣기.</p>
     <p class="note" id="bm-where"></p>
@@ -1188,27 +1189,67 @@ $("#fill-preview").addEventListener("click", () => fillPreviews());
 const NM_HOME = "https://naemoeum.vercel.app/";
 // 북마클릿 본문. 한 줄로 이어 붙이므로 모든 문장 끝에 ;를 쓰고 // 주석과 % 문자는 쓰지 않는다.
 function nmSend(home){
-  try {
-    var s = String(getSelection() || "").trim();
-    var d = { v: 3, u: location.href, ti: document.title, sel: !!s, t: s.slice(0, 30000), l: [], dg: null };
-    if (!s && /(^|\.)keep\.naver\.com$/.test(location.hostname)){
-      var m = {}, X = /^(nid|help|mail|calendar|contact|mybox|memo|talk|note|keep|www|m|ssl|static|common|section)\.naver\.com$/;
-      var add = function(href, t){ var h; try { h = new URL(href, location.href); } catch (e){ return; }
-        if (!/^https?:$/.test(h.protocol) || h.host === location.host || X.test(h.hostname) || h.pathname.length < 2) return;
-        t = String(t || "").trim().split("\n")[0].slice(0, 160); if (!(h.href in m) || t.length > m[h.href].length) m[h.href] = t; };
-      document.querySelectorAll("a[href]").forEach(function(a){ add(a.getAttribute("href"), a.innerText || a.title); });
-      document.querySelectorAll("[data-url],[data-href],[data-link],[data-original-url]").forEach(function(e){ add(e.getAttribute("data-url") || e.getAttribute("data-href") || e.getAttribute("data-link") || e.getAttribute("data-original-url"), e.innerText); });
-      d.l = Object.keys(m).slice(0, 3000).map(function(u){ return [m[u], u]; });
-      if (d.l.length < 2){
-        var hs = {}; document.querySelectorAll("a[href]").forEach(function(a){ var k; try { var x = new URL(a.getAttribute("href"), location.href); k = x.host + "/" + (x.pathname.split("/")[1] || ""); } catch (e){ k = "?"; } hs[k] = (hs[k] || 0) + 1; });
-        var dom = null; document.querySelectorAll("span,div,p,em,strong,dd,small").forEach(function(e){ if (!dom && !e.children.length && /^[a-z0-9.-]+\.(com|net|kr|io|co|org)$/i.test((e.textContent || "").trim())) dom = e; });
-        var path = []; for (var e = dom, i = 0; e && i < 7; e = e.parentElement, i++){ path.push(e.tagName.toLowerCase() + "." + String(e.className || "").slice(0, 60) + " [" + [].map.call(e.attributes, function(a){ return /^(data-|href|role|onclick)/.test(a.name) ? a.name + "=" + String(a.value).slice(0, 50) : a.name; }).join(" ") + "]"); }
-        d.dg = { anchors: document.querySelectorAll("a[href]").length, hosts: hs, path: path };
+  var s = String(getSelection() || "").trim();
+  var KEEP = /(^|\.)keep\.naver\.com$/.test(location.hostname);
+  var d = { v: 4, u: location.href, ti: document.title, sel: !!s, t: s.slice(0, 30000), l: [], dg: null };
+  if (s || !KEEP){
+    var w0 = window.open(home + "#nm=" + encodeURIComponent(JSON.stringify(d)), "_blank");
+    if (!w0) alert("팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.");
+    return;
+  }
+  var LS = "a[href],[data-url],[data-href],[data-link],[data-original-url]";
+  var BAD = "header,nav,footer,aside,[role=banner],[role=navigation],[role=contentinfo],[class*=gnb],[class*=header],[class*=footer],[class*=lnb],[class*=banner],[class*=notice]";
+  var X = /^(nid|help|mail|calendar|contact|mybox|memo|talk|note|keep|www|m|ssl|static|common|section|campaign)\.naver\.com$/;
+  var hrefOf = function(e){ return e.getAttribute("href") || e.getAttribute("data-url") || e.getAttribute("data-href") || e.getAttribute("data-link") || e.getAttribute("data-original-url"); };
+  var good = function(u){ var h; if (!u) return null; try { h = new URL(u, location.href); } catch (e){ return null; } if (!/^https?:$/.test(h.protocol) || h.host === location.host || X.test(h.hostname) || h.pathname.length < 2) return null; return h.href; };
+  var isDom = function(t){ return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(String(t || "").trim()); };
+  var isMeta = function(t){ t = String(t || "").trim(); return t.length > 3 && (isDom(t) || (t.length < 32 && / \| /.test(t))); };
+  var metaIn = function(e){ return [].filter.call(e.querySelectorAll("*"), function(x){ return !x.children.length && isMeta(x.textContent); }).length; };
+  var m = {}, order = [], seen = new WeakSet(), noLink = 0, firstLeaf = null;
+  var add = function(u, t){ if (!(u in m)){ order.push(u); m[u] = String(t || "").slice(0, 100); } else if (!m[u] && t) m[u] = String(t).slice(0, 100); };
+  var collect = function(){
+    [].forEach.call(document.querySelectorAll("span,div,p,em,strong,dd,dt,small,a,cite"), function(leaf){
+      if (seen.has(leaf) || leaf.children.length || !isMeta(leaf.textContent) || leaf.closest(BAD)) return;
+      seen.add(leaf); if (!firstLeaf) firstLeaf = leaf;
+      var e = leaf, found = [], up = leaf.closest(LS);
+      if (up && good(hrefOf(up))){ found = [up]; e = up.parentElement || up; }
+      else for (var i = 0; i < 6 && e.parentElement; i++){
+        e = e.parentElement;
+        if (metaIn(e) > 1) break;
+        found = [].filter.call(e.querySelectorAll(LS), function(a){ return good(hrefOf(a)); });
+        if (found.length) break;
       }
-    }
-    var w = window.open(home + "#nm=" + encodeURIComponent(JSON.stringify(d)), "_blank");
-    if (!w) alert("팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요.");
-  } catch (e){ alert("내모음으로 보내지 못했어요: " + e.message); }
+      if (!found.length){ noLink++; return; }
+      var u = good(hrefOf(found[0]));
+      var t = ""; [].some.call(e.querySelectorAll("*"), function(x){ var v = String(x.textContent || "").trim(); if (!x.children.length && x !== leaf && v.length > 1 && !isDom(v)){ t = v; return true; } return false; });
+      add(u, t);
+    });
+  };
+  var sc = document.scrollingElement, gap = sc.scrollHeight - sc.clientHeight;
+  [].forEach.call(document.querySelectorAll("*"), function(e){ var g = e.scrollHeight - e.clientHeight; if (g > gap + 10 && e.clientHeight > 200){ var o = getComputedStyle(e).overflowY; if (o === "auto" || o === "scroll"){ sc = e; gap = g; } } });
+  var ov = document.createElement("div"), msg = document.createElement("span"), btn = document.createElement("button");
+  ov.style.cssText = "position:fixed;z-index:2147483647;right:16px;bottom:16px;background:#1f2a44;color:#fff;padding:12px 14px;border-radius:10px;font:14px/1.4 sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center";
+  btn.textContent = "여기까지 보내기"; btn.style.cssText = "font:13px sans-serif;padding:4px 8px;border-radius:6px;border:0;cursor:pointer";
+  ov.appendChild(msg); ov.appendChild(btn); document.body.appendChild(ov);
+  var stop = false, still = 0, last = -1, round = 0; btn.onclick = function(){ stop = true; };
+  var finish = function(){
+    collect(); sc.scrollTop = 0;
+    var hs = {}; [].forEach.call(document.querySelectorAll("a[href]"), function(a){ var k; try { var x = new URL(a.getAttribute("href"), location.href); k = x.host + "/" + (x.pathname.split("/")[1] || ""); } catch (e){ k = "?"; } hs[k] = (hs[k] || 0) + 1; });
+    var path = []; for (var e = firstLeaf, i = 0; e && i < 7; e = e.parentElement, i++){ path.push(e.tagName.toLowerCase() + "." + String(e.className || "").slice(0, 60) + " [" + [].map.call(e.attributes, function(a){ return /^(data-|href|role|onclick)/.test(a.name) ? a.name + "=" + String(a.value).slice(0, 50) : a.name; }).join(" ") + "]"); }
+    d.l = order.slice(0, 3000).map(function(u){ return [m[u], u]; });
+    d.dg = { found: order.length, noLink: noLink, rounds: round, stopped: stop, anchors: document.querySelectorAll("a[href]").length, scroller: sc.tagName + "." + String(sc.className || "").slice(0, 60), hosts: hs, path: path };
+    msg.textContent = "내모음: " + order.length + "개를 모았어요"; btn.textContent = "내모음으로 보내기"; btn.style.background = "#7ee2a8";
+    btn.onclick = function(){ var w = window.open(home + "#nm=" + encodeURIComponent(JSON.stringify(d)), "_blank"); if (!w){ alert("팝업이 막혔어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용해 주세요."); return; } ov.remove(); };
+  };
+  var tick = function(){
+    collect(); msg.textContent = "내모음: " + order.length + "개 모으는 중… 목록을 끝까지 내리고 있어요";
+    var before = sc.scrollTop; sc.scrollTop = before + Math.max(300, sc.clientHeight * 0.85);
+    if (order.length === last && sc.scrollTop <= before + 2) still++; else still = 0;
+    last = order.length; round++;
+    if (stop || still >= 6 || round > 900){ finish(); return; }
+    setTimeout(tick, 700);
+  };
+  tick();
 }
 const BOOKMARKLET = "javascript:(" + nmSend.toString().replace(/\n\s*/g, " ") + ")('" + NM_HOME + "')";
 $("#bm-link").setAttribute("href", BOOKMARKLET);
@@ -1229,11 +1270,12 @@ function sentNote(msg, diag){
 }
 $("#sent-close").addEventListener("click", () => { $("#sent-note").hidden = true; });
 function takeSent(){
+  if (location.hash === "#nm-wait"){ history.replaceState(null, "", location.pathname + location.search); return sentNote("Keep 목록을 끝까지 내리며 모으는 중이에요. Keep 탭 오른쪽 아래에서 개수를 볼 수 있어요. 끝나면 여기에 자동으로 채워져요."); }
   const m = location.hash.match(/^#nm=(.+)$/s); if (!m) return;
   history.replaceState(null, "", location.pathname + location.search);
   let d; try { d = JSON.parse(decodeURIComponent(m[1])); } catch { return sentNote("보낸 내용을 읽지 못했어요. 아무것도 저장하지 않았어요."); }
   // 예전 버튼은 화면 글 전체를 통째로 보내므로 받지 않는다
-  if (!d || !(d.v >= 3)) return sentNote("예전 버튼이에요. 아무것도 저장하지 않았어요. 설정에서 새 버튼을 북마크바로 다시 끌어다 놓고, 예전 버튼은 지워 주세요.");
+  if (!d || !(d.v >= 4)) return sentNote("예전 버튼이에요. 아무것도 저장하지 않았어요. 설정에서 새 버튼을 북마크바로 다시 끌어다 놓고, 예전 버튼은 지워 주세요.");
   const url = String(d.u || ""); let host = ""; try { host = new URL(url).hostname; } catch {}
   const isKeep = /(^|\.)keep\.naver\.com$/.test(host);
   const links = Array.isArray(d.l) ? d.l.filter(x => Array.isArray(x) && /^https?:/.test(x[1] || "")) : [];
@@ -1250,6 +1292,7 @@ function takeSent(){
   if (hit && !(hit[1] === "구글 지도" && !/\/maps/.test(url))){ $("#from").value = hit[1]; $("#from").dataset.touched = "1"; }
   refreshDetect();
   $("#confirm").scrollIntoView({ block: "start" });
+  if (mode === "links" && isKeep){ const dg = d.dg || {}; sentNote(`Keep에서 링크 ${links.length.toLocaleString()}개를 찾았어요.` + (dg.noLink ? ` 링크가 없는 항목 ${dg.noLink.toLocaleString()}개(메모, 사진 등)는 가져오지 않았어요.` : "") + " 숫자가 Keep과 많이 다르면 '진단 정보 복사'를 눌러 대화창에 붙여넣어 주세요.", dg); }
   if (mode === "links"){ $("#more").open = true; $("#tags").placeholder = "태그 (예: Keep 컬렉션 이름 국내여행)"; toast(`링크 ${links.length}개를 가져왔어요. 확인하고 저장하기를 누르세요.`); }
   else if (mode === "page") toast("이 페이지를 링크로 가져왔어요. 확인하고 저장하기를 누르세요.");
   else toast("선택한 글을 가져왔어요. 확인하고 저장하기를 누르세요.");
@@ -1261,6 +1304,7 @@ function ruleTopicsForOld(){
   if (changed) local.write(items); if (n) render();
 }
 takeSent();
+window.addEventListener("hashchange", () => { if (/^#nm/.test(location.hash)) takeSent(); });
 initStore().catch(() => useLocal()).finally(() => { ruleTopicsForOld(); if ($("#raw").value.trim()) refreshDetect(); });
 })();
 </script>
