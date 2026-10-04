@@ -184,6 +184,24 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .card .desc{margin:0;font-size:13.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .card .sum{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
 .card .chips{display:flex;flex-wrap:wrap;gap:5px}
+.topicbtn{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px solid transparent;border-radius:5px;padding:3px 7px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topicbtn:hover{border-color:var(--muted)}
+.topicbtn.empty{background:var(--soft);color:var(--muted);font-weight:500}
+.topic-menu{position:fixed;z-index:50;background:var(--sheet);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:6px;width:220px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;gap:6px}
+.tm-list{display:flex;flex-direction:column;max-height:260px;overflow-y:auto}
+.tm-list button{border:0;background:transparent;color:var(--ink);font:14px var(--f-body);text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
+.tm-list button:hover{background:var(--soft)}
+.tm-list button.on{background:var(--mark);color:var(--mark-ink);font-weight:600}
+.tm-list button.muted{color:var(--muted)}
+.tm-new{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:6px}
+.tm-new input{flex:1 1 auto;min-width:0;padding:5px 8px;font-size:14px}
+.tm-new .btn{flex:none;white-space:nowrap;padding:5px 10px}
+.fgroup li:has(.t-edit){display:flex;align-items:center;gap:2px}
+.fgroup li:has(.t-edit) .fbtn{flex:1 1 auto;min-width:0}
+.t-edit{padding:4px 6px;flex:none}
+.t-editrow{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.t-editrow input{padding:5px 8px;font-size:14px}
+.t-editrow .btn{padding:4px 9px;font-size:13px}
 .topicbox{display:inline-flex;align-items:center}
 .topicbox input{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px dashed transparent;border-radius:5px;padding:3px 7px;width:9em;min-width:0}
 .topicbox input:hover{border-color:var(--muted)}
@@ -791,6 +809,16 @@ async function updateItem(id, patch){
   if (store === "sb"){ await sbPatch(id, patch); render(); return; }
   items = items.map(i => i.id === id ? normalize({ ...i, ...patch }) : i); local.write(items); render();
 }
+async function updateMany(ids, patch){
+  const set = new Set(ids), next = i => normalize({ ...i, ...patch });
+  if (store === "db"){ for (const id of ids) await col.doc(id).update(patch); return; }
+  if (store === "sb"){
+    const rows = items.filter(i => set.has(i.id)).map(i => ({ ...i, ...patch }));
+    for (let k = 0; k < rows.length; k += SB_CHUNK){ const { error } = await sb.from("notes").upsert(rows.slice(k, k + SB_CHUNK).map(i => ({ id: i.id, user_id: sbUser.id, data: plain(i) }))); if (error) throw error; }
+    items = items.map(i => set.has(i.id) ? next(i) : i); render(); return;
+  }
+  items = items.map(i => set.has(i.id) ? next(i) : i); local.write(items); render();
+}
 async function removeItems(ids){
   const set = new Set(ids);
   if (store === "db"){ let k = 0; const w = async () => { while (k < ids.length){ const id = ids[k++]; await col.doc(id).delete(); } }; await Promise.all([w(), w(), w(), w()]); return; }
@@ -1175,7 +1203,27 @@ $("#ai-classify").addEventListener("click", () => { const todo = items.filter(i 
 const F = { topic: null, sub: null, type: null, platform: null, savedFrom: null, tag: null };
 const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", sub: "세부", tag: "태그" };
 const NO_TOPIC = "주제 없음", ETC = "기타";
-let smallTopics = new Set(), moreOpen = false, topicOpen = true;
+let smallTopics = new Set(), moreOpen = false, topicOpen = true, topicEdit = null, topicDelArmed = false;
+const PEN_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+// 왼쪽 주제: 이름 바꾸기(같은 이름이 있으면 합쳐짐)·지우기(그 항목들은 '주제 없음')
+function topicEditRow(t){
+  const ids = items.filter(i => i.topic === t).map(i => i.id);
+  const inp = el("input", { type: "text", value: t, "aria-label": "주제 이름", maxlength: "20" });
+  const done = () => { topicEdit = null; topicDelArmed = false; render(); };
+  const del = el("button", { type: "button", class: "btn ghost danger", text: topicDelArmed ? `${ids.length}개를 주제 없음으로` : "지우기" });
+  del.addEventListener("click", async () => {
+    if (!topicDelArmed){ topicDelArmed = true; del.textContent = `${ids.length}개를 주제 없음으로`; return; }
+    try { await updateMany(ids, { topic: "", sub: "", topicBy: "user" }); if (F.topic === t){ F.topic = null; F.sub = null; } toast("주제를 지웠습니다."); } catch { toast("지우지 못했습니다."); } done();
+  });
+  const form = el("form", { class: "t-editrow" }, inp, el("div", { class: "row" }, el("button", { type: "submit", class: "btn", text: "저장" }), del, el("button", { type: "button", class: "btn ghost", text: "취소", onclick: done })));
+  form.addEventListener("submit", async e => {
+    e.preventDefault(); const v = inp.value.trim().slice(0, 20);
+    if (!v || v === t) return done();
+    try { await updateMany(ids, { topic: v, topicBy: "user" }); if (F.topic === t) F.topic = v; toast(`'${v}'(으)로 바꿨습니다.`); } catch { toast("바꾸지 못했습니다."); } done();
+  });
+  setTimeout(() => inp.focus(), 0);
+  return el("li", {}, form);
+}
 let q = "", sort = "new"; const expanded = new Set(); let editing = null;
 // 여러 개 지우기: '삭제'를 누르면 카드마다 체크칸이 생긴다
 let selecting = false, delArmed = false, onPage = []; const picked = new Set();
@@ -1221,13 +1269,19 @@ function renderFilters(){
     k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: label || (k === "tag" ? "#" + v : v) }), el("span", { class: "stats", text: n.toLocaleString() })));
   // 주제: 큰 주제만 보이고, 고르면 세부 주제가 그 아래에 열린다. 3개 미만인 주제는 '기타'로 묶는다.
   const all = new Map(); items.forEach(i => { const t = i.topic || NO_TOPIC; all.set(t, (all.get(t) || 0) + 1); });
-  smallTopics = new Set([...all.entries()].filter(([t, n]) => n < 3 && t !== NO_TOPIC).map(([t]) => t));
+  const mine = new Set(items.filter(i => i.topicBy === "user" && i.topic).map(i => i.topic)); // 직접 만든·붙인 주제는 '기타'로 묶지 않는다
+  smallTopics = new Set([...all.entries()].filter(([t, n]) => n < 3 && t !== NO_TOPIC && !mine.has(t)).map(([t]) => t));
   if (smallTopics.size < 2) smallTopics = new Set();
   const m = new Map(); items.filter(i => matches(i, "topic")).forEach(i => { let t = i.topic || NO_TOPIC; if (smallTopics.has(t)) t = ETC; m.set(t, (m.get(t) || 0) + 1); });
   const order = [...m.entries()].sort((a, b) => (a[0] === NO_TOPIC) - (b[0] === NO_TOPIC) || (a[0] === ETC) - (b[0] === ETC) || b[1] - a[1]);
   const ul = el("ul");
   order.forEach(([t, n]) => {
-    ul.append(fbtn("topic", t, n, t, t === NO_TOPIC ? "muted" : ""));
+    if (topicEdit === t){ ul.append(topicEditRow(t)); return; }
+    const li = fbtn("topic", t, n, t, t === NO_TOPIC ? "muted" : ""); ul.append(li);
+    if (F.topic === t && t !== ETC && t !== NO_TOPIC){
+      const pen = el("button", { type: "button", class: "btn ghost icon-btn t-edit", "aria-label": "주제 이름 바꾸기·지우기", title: "이름 바꾸기·지우기", onclick: () => { topicEdit = t; topicDelArmed = false; render(); } });
+      pen.innerHTML = PEN_SVG; li.append(pen);
+    }
     if (F.topic === t && t !== ETC && t !== NO_TOPIC){
       const sm = new Map(); items.filter(i => matches(i, "sub") && i.topic === t).forEach(i => { const s = i.sub || ""; if (s) sm.set(s, (sm.get(s) || 0) + 1); });
       [...sm.entries()].sort((a, b) => b[1] - a[1]).forEach(([s, n2]) => ul.append(fbtn("sub", s, n2, s, "sub")));
@@ -1279,20 +1333,44 @@ function srcField(n){
   return el("label", { class: "srcbox" }, "출처", inp);
 }
 // 카드 위에서 바로 주제를 고친다. 직접 고친 주제는 자동 규칙이 다시 바꾸지 않는다.
+// 카드의 주제: 누르면 모든 주제와 '새 주제' 칸이 뜬다
 function topicField(n){
-  const inp = el("input", { type: "text", list: "topic-all", "aria-label": "주제", placeholder: "주제 없음", title: "주제를 적거나 골라서 바꿀 수 있어요", autocomplete: "off" });
   const shown = n.topic ? n.topic + (n.sub ? " · " + n.sub : "") : "";
-  inp.value = shown;
-  const commit = async () => {
-    const v = inp.value.trim().slice(0, 40);
-    if (v === shown) return;
-    const [t = "", sb = ""] = v.split(/\s*[·>\/]\s*/);
-    try { await updateItem(n.id, { topic: t.slice(0, 20), sub: sb.slice(0, 20), topicBy: "user" }); toast(v ? `주제를 '${v}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
-  };
-  inp.addEventListener("change", commit);
-  inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); inp.blur(); } if (e.key === "Escape"){ inp.value = n.topic || ""; inp.blur(); } });
-  return el("label", { class: "topicbox" + (n.topic ? "" : " empty") }, inp);
+  const b = el("button", { type: "button", class: "topicbtn" + (n.topic ? "" : " empty"), "aria-haspopup": "menu", text: (shown || NO_TOPIC) + " ▾" });
+  b.addEventListener("click", e => { e.stopPropagation(); openTopicMenu(b, n); });
+  return b;
 }
+function allTopics(){
+  const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
+  const used = [...m.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  return used.concat(TOPIC_RULES.map(r => r[0]).filter(t => !m.has(t)));
+}
+async function setTopic(n, t){
+  closeTopicMenu(); t = t.trim().slice(0, 20);
+  if (t === (n.topic || "")) return;
+  try { await updateItem(n.id, { topic: t, sub: t ? ruleSub(t, n) : "", topicBy: "user" }); toast(t ? `'${t}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
+}
+let topicMenu = null;
+function closeTopicMenu(){ if (topicMenu){ topicMenu.remove(); topicMenu = null; } }
+function openTopicMenu(anchor, n){
+  if (topicMenu && topicMenu._for === n.id){ closeTopicMenu(); return; }
+  closeTopicMenu();
+  const m = el("div", { class: "topic-menu", role: "menu" }); m._for = n.id;
+  const list = el("div", { class: "tm-list" });
+  allTopics().forEach(t => list.append(el("button", { type: "button", role: "menuitem", class: t === n.topic ? "on" : "", text: t, onclick: () => setTopic(n, t) })));
+  if (n.topic) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => setTopic(n, "") }));
+  const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
+  const form = el("form", { class: "tm-new" }, inp, el("button", { type: "submit", class: "btn", text: "추가" }));
+  form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) setTopic(n, inp.value); });
+  m.append(list, form); m.addEventListener("click", e => e.stopPropagation());
+  document.body.append(m); topicMenu = m;
+  const r = anchor.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
+  const top = r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4;
+  m.style.top = top + "px"; m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+}
+document.addEventListener("click", closeTopicMenu);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeTopicMenu(); });
+window.addEventListener("scroll", closeTopicMenu, { passive: true });
 // 인스타 제목 앞의 "23K likes, 162 comments - 아이디 - August 31, 2026: " 같은 부분을 떼고 글만 보인다 (원래 제목은 그대로 둔다)
 function cardTitle(t){
   let s = String(t || "").trim();
@@ -1366,8 +1444,6 @@ function editForm(n){
 function render(){
   renderFilters();
   if (selecting) updateSelTools();
-  let tl = $("#topic-all"); if (!tl){ tl = el("datalist", { id: "topic-all" }); document.body.append(tl); }
-  tl.textContent = ""; [...new Set(TOPIC_RULES.map(r => r[0]).concat(items.map(i => i.topic)).filter(Boolean))].forEach(t => tl.append(el("option", { value: t })));
   const list = $("#list"); list.textContent = ""; onPage = [];
   $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
   const untopiced = items.filter(i => !i.topic || i.topicBy === "rule").length;
