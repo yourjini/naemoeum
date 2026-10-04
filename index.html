@@ -1216,7 +1216,7 @@ function takeSent(){
   refreshDetect();
   if (current.mode === "text" && d.ti && !$("#title").value && !/keep/i.test(host)) $("#title").value = String(d.ti).slice(0, 160);
   $("#confirm").scrollIntoView({ block: "start" });
-  if (asLinks){ toast(`그 화면의 링크 ${links.length}개를 가져왔습니다. 확인하고 저장하기를 누르세요.`); return; }
+  if (asLinks){ $("#more").open = true; $("#tags").placeholder = "태그 (예: Keep 컬렉션 이름 국내여행)"; toast(`그 화면의 링크 ${links.length}개를 가져왔습니다. 확인하고 저장하기를 누르세요.`); return; }
   toast(d.sel ? "선택한 글을 가져왔습니다. 확인하고 저장하기를 누르세요." : "그 화면의 글을 가져왔습니다. 확인하고 저장하기를 누르세요.");
 }
 render();
