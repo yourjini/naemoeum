@@ -267,7 +267,6 @@ https://youtu.be/dQw4w9WgXcQ
         <div class="row">
           <button class="btn primary big" id="save" type="button" disabled>저장하기</button>
           <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>저장할 때 AI로 주제 붙이기</label>
-          <span class="note" id="save-hint">1번 칸에 붙여넣으면 눌러집니다 · Ctrl+Enter</span>
         </div>
       </div>
     </div>
@@ -615,7 +614,6 @@ function refreshDetect(){
   if (current.mode === "text" && $("#src").dataset.touched !== "1") $("#src").value = current.url ? current.platform : "";
   $("#confirm").hidden = current.mode === "empty";
   $("#raw-clear").hidden = !raw.trim();
-  $("#save-hint").hidden = current.mode !== "empty";
   const known = knownKeys();
   if (current.mode === "empty"){ box.append(el("span", { class: "note", text: "아직 아무것도 없습니다. 링크나 글을 붙여넣어 보세요." })); }
   else if (current.mode === "links"){
