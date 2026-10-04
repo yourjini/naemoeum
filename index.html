@@ -77,6 +77,11 @@ button.btn.primary{background:var(--accent);border-color:var(--accent);color:var
 button.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:5px 8px}
 button.btn.ghost:hover{color:var(--ink);background:var(--soft)}
 button.btn.danger{color:var(--danger)}
+.savebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--soft);border-radius:var(--r);padding:10px 12px}
+.savebar #tags{flex:1 1 180px;width:auto;background:var(--sheet)}
+.savebar select{background:var(--sheet)}
+button.btn.big{font-size:15px;font-weight:600;padding:10px 20px;margin-left:auto}
+@media (max-width:520px){button.btn.big{width:100%;justify-content:center;margin-left:0}}
 button.btn:disabled{opacity:.5;cursor:not-allowed}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;user-select:none}
 .chk input{accent-color:var(--accent);width:15px;height:15px}
@@ -177,11 +182,12 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
     </div>
 
     <!-- 붙여넣기 -->
-    <div id="pane-paste" role="tabpanel" aria-labelledby="tab-paste" class="cap-grid">
+    <div id="pane-paste" role="tabpanel" aria-labelledby="tab-paste" class="stack">
+    <div class="cap-grid">
       <div class="stack">
         <textarea id="raw" spellcheck="false" placeholder="링크, 문장, 또는 둘 다 붙여넣으세요. 링크를 여러 줄 붙여넣으면 한 번에 여러 개를 담습니다. 스크린샷을 붙여넣으면 글자를 읽습니다."></textarea>
         <div class="row between">
-          <span class="note" id="raw-note"><span class="pill">예시</span> 붙여넣으면 이 예시는 사라집니다.</span>
+          <span class="note" id="raw-note"><span class="pill">예시</span> 내 링크나 글을 붙여넣고 아래 <b>서재에 담기</b>를 누르세요 (Ctrl+Enter).</span>
           <button class="btn ghost" id="raw-clear" type="button">비우기</button>
         </div>
       </div>
@@ -202,17 +208,15 @@ mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2p
           </details>
           <input type="text" id="title" placeholder="제목 (비우면 첫 문장으로)" aria-label="제목">
         </div>
-        <div class="row">
-          <label class="note" for="from">저장했던 곳</label>
-          <select id="from"></select>
-          <input type="text" id="tags" placeholder="태그 (쉼표로 구분)" aria-label="태그" style="flex:1 1 160px;width:auto">
-        </div>
-        <div class="row between">
-          <span class="note" id="ai-hint" hidden>AI 정리를 켜면 담을 때 주제·태그·요약을 붙입니다.</span>
-          <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>담을 때 AI로 분류</label>
-          <button class="btn primary" id="save" type="button">담기</button>
-        </div>
       </div>
+    </div>
+    <div class="savebar">
+      <label class="note" for="from">저장했던 곳</label>
+      <select id="from"></select>
+      <input type="text" id="tags" placeholder="태그 (쉼표로 구분)" aria-label="태그">
+      <label class="chk" id="ai-on-wrap" hidden><input type="checkbox" id="ai-on" checked>담을 때 AI로 분류</label>
+      <button class="btn primary big" id="save" type="button">서재에 담기</button>
+    </div>
     </div>
 
     <!-- 이미지 -->
@@ -539,7 +543,7 @@ function refreshDetect(){
     if (current.url) box.append(el("span", { class: "stats", text: current.url }));
     retidy();
   }
-  $("#save").textContent = current.mode === "links" ? `${current.items.filter(i => !known.has(urlKey(i.url))).length}개 담기` : "담기";
+  $("#save").textContent = current.mode === "links" ? `서재에 ${current.items.filter(i => !known.has(urlKey(i.url))).length}개 담기` : "서재에 담기";
   $("#save").disabled = current.mode === "empty" || (current.mode === "links" && !current.items.some(i => !known.has(urlKey(i.url))));
 }
 function retidy(){
