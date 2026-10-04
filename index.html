@@ -142,6 +142,8 @@ header.top{position:sticky;top:0;z-index:20;background:var(--paper);padding-bloc
 .fbtn.muted .nm{color:var(--muted)}
 .more-filters{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:10px}
 .more-filters > summary{cursor:pointer;font-size:13px;color:var(--muted);list-style-position:inside}
+.topic-filters{border-top:0;padding-top:0;gap:4px}
+.topic-filters + .more-filters{margin-top:-4px}
 .more-filters[open] > summary{margin-bottom:10px}
 .more-filters .fgroup + .fgroup{margin-top:14px}
 .fbtn .kind{font:500 13px/1.2 var(--f-body)}
@@ -1168,7 +1170,7 @@ $("#ai-classify").addEventListener("click", () => { const todo = items.filter(i 
 const F = { topic: null, sub: null, type: null, platform: null, savedFrom: null, tag: null };
 const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", sub: "세부", tag: "태그" };
 const NO_TOPIC = "주제 없음", ETC = "기타";
-let smallTopics = new Set(), moreOpen = false;
+let smallTopics = new Set(), moreOpen = false, topicOpen = true;
 let q = "", sort = "new"; const expanded = new Set(); let editing = null;
 // 여러 개 지우기: '삭제'를 누르면 카드마다 체크칸이 생긴다
 let selecting = false, delArmed = false; const picked = new Set();
@@ -1225,10 +1227,12 @@ function renderFilters(){
       [...sm.entries()].sort((a, b) => b[1] - a[1]).forEach(([s, n2]) => ul.append(fbtn("sub", s, n2, s, "sub")));
     }
   });
-  if (order.length) box.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: "주제" }), ul));
-  // 나머지 기준은 접어 둔다
-  const det = el("details", { class: "more-filters" }); det.open = moreOpen || ["type", "platform", "savedFrom", "tag"].some(k => F[k]);
-  det.addEventListener("toggle", () => { moreOpen = det.open; });
+  // 주제와 다른 기준은 접고 펼 수 있고, 한쪽을 펼치면 다른 쪽은 접힌다
+  const tdet = el("details", { class: "more-filters topic-filters" }); tdet.open = topicOpen && !moreOpen;
+  if (order.length){ tdet.append(el("summary", { text: "주제" }), el("div", { class: "fgroup" }, ul)); box.append(tdet); }
+  const det = el("details", { class: "more-filters" }); det.open = moreOpen || (!topicOpen && ["type", "platform", "savedFrom", "tag"].some(k => F[k]));
+  tdet.addEventListener("toggle", () => { topicOpen = tdet.open; if (tdet.open && det.open){ moreOpen = false; det.open = false; } });
+  det.addEventListener("toggle", () => { moreOpen = det.open; if (det.open && tdet.open){ topicOpen = false; tdet.open = false; } });
   det.append(el("summary", { text: "다른 기준" }));
   for (const k of ["type", "platform", "savedFrom", "tag"]){
     let arr = countsFor(k); if (!arr.length && !F[k]) continue;
