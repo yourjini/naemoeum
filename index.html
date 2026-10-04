@@ -1345,7 +1345,7 @@ function renderFilters(){
   smallTopics = new Set([...all.entries()].filter(([t, n]) => n < 3 && t !== NO_TOPIC && !mine.has(t)).map(([t]) => t));
   if (smallTopics.size < 2) smallTopics = new Set();
   const m = new Map(); items.filter(i => matches(i, "topic")).forEach(i => { let t = i.topic || NO_TOPIC; if (smallTopics.has(t)) t = ETC; m.set(t, (m.get(t) || 0) + 1); });
-  const order = [...m.entries()].sort((a, b) => (a[0] === NO_TOPIC) - (b[0] === NO_TOPIC) || (a[0] === ETC) - (b[0] === ETC) || b[1] - a[1]);
+  const order = [...m.entries()].sort((a, b) => (a[0] === NO_TOPIC) - (b[0] === NO_TOPIC) || (a[0] === ETC) - (b[0] === ETC) || topicCmp(a[0], b[0]));
   const ul = el("ul", { class: "topic-list" });
   topTopics = order.map(([t]) => t).filter(t => t !== ETC && t !== NO_TOPIC);
   // 연필 자리는 모든 줄에 같은 폭으로 둬서 개수가 한 줄로 맞는다
@@ -1371,7 +1371,7 @@ function renderFilters(){
     if (real) dropTo(li, t);
     if (F.topic === t && real){
       const sm = new Map(); items.filter(i => matches(i, "sub") && i.topic === t).forEach(i => { const s = i.sub || ""; if (s) sm.set(s, (sm.get(s) || 0) + 1); });
-      [...sm.entries()].sort((a, b) => b[1] - a[1]).forEach(([s, n2]) => {
+      [...sm.entries()].sort((a, b) => topicCmp(a[0], b[0])).forEach(([s, n2]) => {
         const key = t + "\u0000" + s;
         ul.append(topicEdit === key ? topicEditRow(t, s) : withPen(fbtn("sub", s, n2, s, "sub"), key, { t, s }));
       });
@@ -1430,10 +1430,12 @@ function topicField(n){
   b.addEventListener("click", e => { e.stopPropagation(); openTopicMenu(b, n); });
   return b;
 }
+// 주제 순서: 가나다순, 한글이 아닌 것(영어 등)은 그 뒤에
+const isKo = t => /^[\uac00-\ud7a3\u3131-\u318e]/.test(t);
+const topicCmp = (a, b) => (!isKo(a)) - (!isKo(b)) || a.localeCompare(b, "ko", { sensitivity: "base" });
 function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
-  const used = [...m.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  return used.concat([...new Set(TOPIC_RULES.map(r => ruleName(r[0])))].filter(t => t && !m.has(t)));
+  return [...new Set([...m.keys()].concat(TOPIC_RULES.map(r => ruleName(r[0]))))].filter(Boolean).sort(topicCmp);
 }
 async function setTopic(n, t){
   closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
