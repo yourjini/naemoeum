@@ -195,13 +195,12 @@ button.btn.danger-fill:disabled{opacity:.45;cursor:default}
 .topicbtn:hover{border-color:var(--muted)}
 .topicbtn.empty{background:var(--soft);color:var(--muted);font-weight:500}
 .topic-menu{position:fixed;z-index:50;background:var(--sheet);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:6px;width:240px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;gap:6px}
-.tm-list{display:flex;flex-direction:column;max-height:min(60vh,440px);overflow-y:auto;position:relative}
+.tm-list{display:flex;flex-direction:column;overflow-y:auto;position:relative}
 .tm-list button{border:0;background:transparent;color:var(--ink);font:14px var(--f-body);text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
 .tm-list button:hover{background:var(--soft)}
 .tm-list button.on{background:var(--mark);color:var(--mark-ink);font-weight:600}
 .tm-list button.muted{color:var(--muted)}
-.tm-list button.tm-sub{padding-left:18px;font-size:13.5px}
-.tm-list .tm-p{color:var(--muted)}
+.tm-list button.tm-sub{padding-left:24px}
 .topic-pick{width:100%;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font:15px var(--f-body);color:var(--ink);cursor:pointer}
 .tm-new{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:6px}
 .tm-new input{flex:1 1 auto;min-width:0;padding:5px 8px;font-size:14px}
@@ -696,7 +695,7 @@ async function useCloud(u){
   if (mergeTopicPrefs(cloudPrefs || {}) && (topicPrefs.drop.length || Object.keys(topicPrefs.rename).length)) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {});
   const who = $("#acc-who"); who.textContent = ""; who.hidden = false;
   who.append(`${u.email || "내 계정"} · `, el("button", { class: "linkbtn", type: "button", text: "로그아웃", onclick: () => sb.auth.signOut() }));
-  render(); offerMove(); ruleTopicsForOld();
+  render(); offerMove(); ruleTopicsForOld(); fixOddSubs();
 }
 // 로그인 전에 이 브라우저에 모아 둔 것을 계정으로 옮기기 (이미 있는 것은 건너뜀, 브라우저 쪽은 지우지 않음)
 const movedKey = () => "naemoeum.moved." + (sbUser ? sbUser.id : "");
@@ -1499,7 +1498,7 @@ const isKo = t => /^[\uac00-\ud7a3\u3131-\u318e]/.test(t);
 const topicCmp = (a, b) => (!isKo(a)) - (!isKo(b)) || a.localeCompare(b, "ko", { sensitivity: "base" });
 function allTopics(){
   const m = new Map(); items.forEach(i => { if (i.topic) m.set(i.topic, (m.get(i.topic) || 0) + 1); });
-  return [...new Set([...m.keys()].concat(topicPrefs.extra, TOPIC_RULES.map(r => ruleName(r[0]))))].filter(Boolean).sort(topicCmp);
+  return [...new Set([...m.keys()].concat(topicPrefs.extra, TOPIC_RULES.map(r => ruleName(r[0]))))].filter(t => t && (m.has(t) || !topicPrefs.drop.includes(t))).sort(topicCmp);
 }
 async function setTopic(n, t, sb){
   closeTopicMenu(); t = t.trim().slice(0, 20); noteTopicUse(t);
@@ -1520,7 +1519,7 @@ function openTopicMenu(anchor, n, onPick){
   const subs = subsByTopic();
   allTopics().forEach(t => {
     list.append(el("button", { type: "button", role: "menuitem", class: t === cur && !curSub ? "on" : "", text: t, onclick: () => pick(t, "") }));
-    if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), onclick: () => pick(t, sb) }, el("span", { class: "tm-p", text: t + " › " }), sb)));
+    if (subs.has(t)) [...subs.get(t)].sort(topicCmp).forEach(sb => list.append(el("button", { type: "button", role: "menuitem", class: "tm-sub" + (t === cur && sb === curSub ? " on" : ""), text: sb, title: t + " › " + sb, onclick: () => pick(t, sb) })));
   });
   if (cur || (onPick && onPick.allowNone)) list.append(el("button", { type: "button", role: "menuitem", class: "muted", text: NO_TOPIC, onclick: () => pick("", "") }));
   const inp = el("input", { type: "text", placeholder: "새 주제", "aria-label": "새 주제", maxlength: "20" });
@@ -1528,10 +1527,15 @@ function openTopicMenu(anchor, n, onPick){
   form.addEventListener("submit", e => { e.preventDefault(); if (inp.value.trim()) pick(inp.value, ""); });
   m.append(list, form); m.addEventListener("click", e => e.stopPropagation());
   document.body.append(m); topicMenu = m;
-  const r = anchor.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
-  const top = r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4;
-  m.style.top = top + "px"; m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
-  const on = list.querySelector(".on"); if (on) list.scrollTop = on.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2; // 지금 주제가 보이게
+  // 아래·위 중 넓은 쪽으로 펼치고, 그 공간을 넉넉히 쓴다
+  const r = anchor.getBoundingClientRect(), w = m.offsetWidth, below = innerHeight - r.bottom - 12, above = r.top - 12;
+  const down = below >= 360 || below >= above, room = Math.min(down ? below : above, innerHeight * 0.75);
+  list.style.maxHeight = Math.max(160, room - form.offsetHeight - 18) + "px";
+  const h = m.offsetHeight;
+  m.style.top = (down ? r.bottom + 4 : Math.max(8, r.top - 4 - h)) + "px"; m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  // 지금 주제(세부면 그 상위 주제)가 목록 맨 위에 오게
+  const on = list.querySelector(".on"); let head = on; while (head && head.classList.contains("tm-sub") && head.previousElementSibling) head = head.previousElementSibling;
+  if (head) list.scrollTop = head.offsetTop;
 }
 document.addEventListener("click", closeTopicMenu);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeTopicMenu(); });
@@ -1885,6 +1889,20 @@ function takeSent(given){
   else toast("선택한 글을 가져왔어요. 확인하고 저장하기를 누르세요.");
 }
 render();
+// 한 번만: 잘못 붙은 세부 주제 정리 (토막글 › 패션은 밖으로, IT › 개발은 IT로)
+async function fixOddSubs(){
+  if (store !== "local" && store !== "sb") return;
+  try { if (localStorage.getItem("naemoeum.fix.subs1." + store)) return; } catch { return; }
+  const fash = items.filter(i => i.topic === "토막글" && i.sub === "패션").map(i => i.id);
+  const dev = items.filter(i => i.topic === "IT" && i.sub === "개발").map(i => i.id);
+  try {
+    if (fash.length) await updateMany(fash, { topic: "패션", sub: "", topicBy: "user" });
+    if (dev.length) await updateMany(dev, { sub: "", topicBy: "user" });
+  } catch { return; }
+  if (topicPrefs.parent["패션"] === "토막글"){ delete topicPrefs.parent["패션"]; saveTopicPrefs(); }
+  try { localStorage.setItem("naemoeum.fix.subs1." + store, "1"); } catch {}
+  if (fash.length || dev.length) render();
+}
 function ruleTopicsForOld(){
   if (store !== "local" && store !== "sb") return;
   // 주제가 없거나 예전 규칙으로 붙은 항목은 지금 규칙으로 다시 붙인다 (직접 고친 주제는 그대로)
@@ -1896,7 +1914,7 @@ function ruleTopicsForOld(){
 }
 takeSent();
 window.addEventListener("hashchange", () => { if (/^#nm/.test(location.hash)) takeSent(); });
-initStore().catch(() => useLocal()).finally(() => { ruleTopicsForOld(); if ($("#raw").value.trim()) refreshDetect(); });
+initStore().catch(() => useLocal()).finally(() => { ruleTopicsForOld(); fixOddSubs(); if ($("#raw").value.trim()) refreshDetect(); });
 })();
 </script>
 
