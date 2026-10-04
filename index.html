@@ -124,6 +124,13 @@ aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:ca
 .fbtn:hover{background:var(--soft)}
 .fbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .fbtn[aria-pressed="true"] .stats{color:var(--paper)}
+.fbtn.sub{padding-left:22px;font-size:13.5px;color:var(--muted)}
+.fbtn.sub[aria-pressed="true"]{color:var(--paper)}
+.fbtn.muted .nm{color:var(--muted)}
+.more-filters{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:10px}
+.more-filters > summary{cursor:pointer;font-size:13px;color:var(--muted);list-style-position:inside}
+.more-filters[open] > summary{margin-bottom:10px}
+.more-filters .fgroup + .fgroup{margin-top:14px}
 .fbtn .kind{font:500 13px/1.2 var(--f-body)}
 .fbtn .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:860px){.fbtn{width:auto;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:13px}}
@@ -153,7 +160,7 @@ aside.filters{display:flex;flex-direction:column;gap:18px;position:sticky;top:ca
 .card .sum{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
 .card .chips{display:flex;flex-wrap:wrap;gap:5px}
 .topicbox{display:inline-flex;align-items:center}
-.topicbox input{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px dashed transparent;border-radius:5px;padding:3px 7px;width:6.5em;min-width:0}
+.topicbox input{font:600 12px/1.2 var(--f-body);background:var(--mark);color:var(--mark-ink);border:1px dashed transparent;border-radius:5px;padding:3px 7px;width:9em;min-width:0}
 .topicbox input:hover{border-color:var(--muted)}
 .topicbox input:focus{border-style:solid;border-color:var(--muted)}
 .topicbox input::placeholder{color:var(--muted);font-weight:500}
@@ -538,40 +545,65 @@ async function initStore(){
 }
 /* ================= 주제 자동 붙이기 (키워드 규칙, AI 없이) ================= */
 // [주제, 낱말들, 사이트 주소들]. 제목·설명·내용·주소에서 가장 많이 맞는 주제를 고른다.
+const RX = w => new RegExp("(^|[^a-z])" + w + "([^a-z]|$)", "i");
 const TOPIC_RULES = [
-  ["음식", ["맛집", "음식", "레시피", "요리", "카페", "커피", "베이커리", "빵집", "디저트", "식당", "술집", "와인", "브런치", "고기", "국수", "라멘", "초밥", "스시", "파스타", "피자", "치킨", "떡볶이", "밀키트", "반찬", "한식", "중식", "일식", "양식", "오마카세", "recipe", "restaurant", "cafe", "coffee", "food"], ["10000recipe.com", "mangoplate.com", "siksinhot.com", "diningcode.com", "catchtable.co.kr", "baemin.com"]],
-  ["여행", ["여행", "호텔", "숙소", "펜션", "리조트", "항공권", "비행기", "관광", "투어", "캠핑", "글램핑", "여행코스", "데이트 코스", "가볼만한", "명소", "해외여행", "국내여행", "해수욕장", "해변", "바닷가", "제주", "섬여행", "등산", "트레킹", "둘레길", "숙박", "1박2일", "2박3일", "3박4일", "일본", "도쿄", "오사카", "후쿠오카", "교토", "다낭", "방콕", "유럽", "travel", "trip", "hotel", "flight", "resort"], ["airbnb.", "booking.com", "agoda.com", "skyscanner.", "tripadvisor.", "yanolja.com", "goodchoice.kr", "myrealtrip.com", "klook.com", "trip.com", "interpark.com"]],
-  ["쇼핑", ["쇼핑", "최저가", "할인", "쿠폰", "특가", "구매", "주문", "장바구니", "언박싱", "shopping", "sale"], ["coupang.com", "11st.co.kr", "gmarket.co.kr", "auction.co.kr", "smartstore.naver.com", "shopping.naver.com", "musinsa.com", "ssg.com", "kurly.com", "amazon.", "aliexpress.", "29cm.co.kr", "ohou.se"]],
-  ["AI", [/(^|[^a-z])ai([^a-z]|$)/i, "인공지능", "chatgpt", /(^|[^a-z])gpt([^a-z]|$)/i, "claude", "llm", "머신러닝", "딥러닝", "프롬프트", "생성형", "gemini", "openai"], ["openai.com", "anthropic.com", "claude.ai", "huggingface.co"]],
-  ["개발", ["개발", "프로그래밍", "코딩", "자바스크립트", "javascript", "typescript", "파이썬", "python", "react", /(^|[^a-z])api([^a-z]|$)/i, "깃허브", "github", "서버", "프론트엔드", "백엔드", "데이터베이스", /(^|[^a-z])sql([^a-z]|$)/i, "알고리즘", "playwright", "selenium", "devops"], ["github.com", "stackoverflow.com", "velog.io", "dev.to", "developer.mozilla.org", "npmjs.com", "inflearn.com"]],
-  ["일·업무", [/(^|[^a-z])qa([^a-z]|$)/i, "테스트", "테스트케이스", "품질", "버그", "기획", "회의", "업무", "보고서", "엑셀", "노션", "생산성", "협업", "직장", "신입", "회사생활", "커리어", "이직", "면접", "jira", "notion"], ["notion.so", "atlassian.", "slack.com", "figma.com/file"]],
-  ["디자인", ["디자인", /(^|[^a-z])ui([^a-z]|$)/i, /(^|[^a-z])ux([^a-z]|$)/i, "피그마", "figma", "폰트", "일러스트", "로고", "타이포", "레퍼런스", "design"], ["behance.net", "dribbble.com", "pinterest.", "figma.com", "noonnu.cc"]],
-  ["공부", ["강의", "공부", "독서", "도서", "책 추천", "자격증", "영어", "외국어", "학습", "강좌", "클래스", "시험", "인강", "course", "lecture"], ["class101.net", "coursera.org", "udemy.com", "fastcampus.co.kr", "yes24.com", "aladin.co.kr", "kyobobook.co.kr", "ridibooks.com", "millie.co.kr"]],
-  ["건강·운동", ["운동", "헬스", "다이어트", "요가", "필라테스", "러닝", "달리기", "스트레칭", "건강", "병원", "영양제", "수면", "홈트", "workout", "fitness"], []],
-  ["재테크", ["주식", "투자", "재테크", "부동산", "금리", "비트코인", "가상자산", "경제", "적금", "예금", "연금", /(^|[^a-z])etf([^a-z]|$)/i, "청약", "절세", "배당"], ["finance.naver.com", "upbit.com", "bithumb.com", "investing.com"]],
+  ["음식", ["맛집", "음식", "레시피", "요리", "카페", "커피", "베이커리", "빵집", "디저트", "식당", "술집", "와인", "브런치", "고기", "국수", "라멘", "초밥", "스시", "파스타", "피자", "치킨", "떡볶이", "밀키트", "반찬", "한식", "중식", "일식", "양식", "오마카세", "recipe", "restaurant", "cafe", "coffee", "food"], ["10000recipe.com", "mangoplate.com", "siksinhot.com", "diningcode.com", "catchtable.co.kr", "baemin.com", "flimeal.com"]],
+  ["여행", ["여행", "호텔", "숙소", "펜션", "리조트", "항공권", "비행기", "관광", "투어", "캠핑", "글램핑", "차박", "여행코스", "데이트 코스", "가볼만한", "명소", "해외여행", "국내여행", "해수욕장", "해변", "바닷가", "제주", "섬여행", "등산", "트레킹", "둘레길", "산행", "숙박", "1박2일", "2박3일", "3박4일", "일본", "도쿄", "오사카", "후쿠오카", "교토", "오키나와", "다낭", "방콕", "유럽", "travel", "trip", "hotel", "flight", "resort"], ["airbnb.", "booking.com", "agoda.com", "skyscanner.", "tripadvisor.", "yanolja.com", "goodchoice.kr", "myrealtrip.com", "klook.com", "trip.com", "interpark.com", "travie.com", "tour-japan.tistory.com", "japantoyotarent.co.kr", "place.naver.com"]],
+  ["AI", [RX("ai"), "인공지능", "chatgpt", RX("gpt"), "claude", RX("llm"), "머신러닝", "딥러닝", "프롬프트", "생성형", "gemini", "openai", "챗봇"], ["openai.com", "anthropic.com", "claude.ai", "huggingface.co"]],
+  ["IT", ["개발", "프로그래밍", "코딩", "자바스크립트", "javascript", "typescript", "파이썬", "python", "react", RX("api"), "깃허브", "github", "서버", "프론트엔드", "백엔드", "데이터베이스", RX("sql"), "알고리즘", "playwright", "selenium", "devops", RX("qa"), "테스트 자동화", "테스트케이스", "소프트웨어", "앱 개발", "노코드", RX("it"), "개발자", "testing"], ["github.com", "stackoverflow.com", "velog.io", "dev.to", "developer.mozilla.org", "npmjs.com", "inflearn.com", "zdnet.co.kr", "testathon.co", "agiletestingdays.com", "asyncwaiter.com", "postype.com/@devy"]],
+  ["일·업무", ["기획", "회의", "업무", "보고서", "엑셀", "노션", "생산성", "협업", "직장", "신입", "회사생활", "커리어", "이직", "면접", "jira", "notion", "마케팅", "브랜딩", "창업"], ["notion.so", "atlassian.", "slack.com", "thinkwithgoogle.com", "contestkorea.com"]],
+  ["쇼핑", ["쇼핑", "최저가", "할인", "쿠폰", "특가", "구매", "장바구니", "언박싱", "shopping", "sale"], ["coupang.com", "11st.co.kr", "gmarket.co.kr", "auction.co.kr", "smartstore.naver.com", "shopping.naver.com", "brand.naver.com", "ssg.com", "kurly.com", "amazon.", "aliexpress.", "hmall.com", "10x10.co.kr", "medalshop.co.kr", "shinhancard.com"]],
+  ["패션·뷰티", ["패션", "코디", "원피스", "니트", "코트", "자켓", "블라우스", "가방", "신발", "스니커즈", "화장품", "스킨케어", "메이크업", "향수", "뷰티", "헤어", "미용실", "네일", "레깅스"], ["musinsa.com", "29cm.co.kr", "wconcept.co.kr", "oliveyoung.co.kr", "xexymix.com", "swarovski.com", "annanmode.com", "dailylook.kr", "arielstyle.co.kr", "nanasalon.com", "lefee.co.kr", "bymonologue.co.kr", "saintsatin.co.kr", "challansdeparis.co.kr"]],
+  ["디자인", ["디자인", RX("ui"), RX("ux"), "피그마", "figma", "폰트", "일러스트", "로고", "타이포", "레퍼런스", "design"], ["behance.net", "dribbble.com", "pinterest.", "figma.com", "noonnu.cc"]],
+  ["공부", ["강의", "공부", "독서", "도서", "책 추천", "자격증", "영어", "외국어", "학습", "강좌", "클래스", "시험", "인강", "입시", "대입", "수능", "course", "lecture"], ["class101.net", "coursera.org", "udemy.com", "fastcampus.co.kr", "yes24.com", "aladin.co.kr", "kyobobook.co.kr", "ridibooks.com", "millie.co.kr", "book.naver.com", "megastudy.net", "hancom_edu"]],
+  ["건강·운동", ["운동", "헬스", "다이어트", "요가", "필라테스", "러닝", "달리기", "스트레칭", "건강", "병원", "영양제", "수면", "홈트", "클리닉", "한의원", "정신건강", "정형외과", "피부과", "통증", "마사지", "호르몬", "workout", "fitness"], ["dailypharm.com", "mdtoday.co.kr", "privatepilates", "seoulmentalclinic", "sleepino.co.kr"]],
+  ["재테크", ["주식", "투자", "재테크", "부동산", "금리", "비트코인", "가상자산", "경제", "적금", "예금", "연금", RX("etf"), "청약", "절세", "배당", "연말정산"], ["finance.naver.com", "stock.naver.com", "upbit.com", "bithumb.com", "investing.com", "numbersmoney.co.kr", "land.naver.com"]],
   ["육아", ["육아", "아기", "유아", "아이와", "키즈", "어린이", "임신", "출산", "이유식"], []],
-  ["생활", ["인테리어", "살림", "청소", "정리정돈", "수납", "가구", "이사", "생활꿀팁", "꿀팁", "세탁", "반려", "강아지", "고양이"], ["ohou.se"]],
-  ["문화·취미", ["영화", "드라마", "예능", "음악", "노래", "플레이리스트", "공연", "전시", "콘서트", "웹툰", "게임", "사진", "그림", "뮤지컬", "넷플릭스", "netflix", "movie", "music"], ["netflix.com", "melon.com", "spotify.com", "watcha.com", "interpark.com/ticket", "ticketlink.co.kr", "webtoon"]],
-  ["뉴스", ["뉴스", "기사", "속보", "news"], ["news.naver.com", "n.news.naver.com", "news.daum.net", "v.daum.net", "yna.co.kr", "chosun.com", "joongang.co.kr", "donga.com", "hani.co.kr", "khan.co.kr", "mk.co.kr", "hankyung.com", "bbc.", "cnn.com", "nytimes.com"]],
+  ["생활", ["인테리어", "살림", "청소", "정리정돈", "수납", "가구", "이사", "생활꿀팁", "꿀팁", "세탁", "반려", "강아지", "고양이"], ["ohou.se", "dogstest.co.kr"]],
+  ["문화·취미", ["영화", "드라마", "예능", "음악", "노래", "플레이리스트", "공연", "전시", "콘서트", "웹툰", "게임", "그림", "뮤지컬", "넷플릭스", "netflix", "movie", "music"], ["netflix.com", "melon.com", "spotify.com", "watcha.com", "ticketlink.co.kr", "webtoon", "tv.naver.com", "audioclip.naver.com", "youtube.com/playlist", "kovo.co.kr"]],
+  ["유머", ["웃긴", "유머", "레전드", "ㅋㅋ", "짤", "썰"], ["bboom.naver.com"]],
+  ["뉴스", ["뉴스", "속보", "news"], ["news.naver.com", "n.news.naver.com", "news.daum.net", "v.daum.net", "news.nate.com", "media.naver.com", "yna.co.kr", "chosun.com", "joongang.co.kr", "donga.com", "hani.co.kr", "khan.co.kr", "mk.co.kr", "hankyung.com", "sputnik.kr", "industrynews.co.kr", "bbc.", "cnn.com", "nytimes.com"]],
 ];
+// 세부 주제: [주제, [[세부, 낱말들]]]. 가장 많이 맞는 하나만 붙인다.
+const SUB_RULES = {
+  "여행": [["제주", ["제주", "서귀포", "애월", "김녕", "협재", "성산", "우도", "한림", "함덕"]], ["부산", ["부산", "해운대", "광안리", "기장"]], ["강원", ["강릉", "속초", "양양", "춘천", "평창", "강원"]], ["남해안", ["여수", "남해", "통영", "거제", "순천"]], ["경주", ["경주"]], ["서울", ["서울", "성수", "연남", "을지로", "한남", "익선동"]],
+    ["일본", ["일본", "도쿄", "오사카", "후쿠오카", "교토", "오키나와", "삿포로", "나고야", "japan", "도깨비"]], ["동남아", ["다낭", "방콕", "베트남", "태국", "발리", "세부", "싱가포르", "대만", "타이베이", "홍콩", "나트랑", "푸꾸옥"]], ["유럽", ["유럽", "파리", "런던", "이탈리아", "스페인", "스위스", "프라하"]], ["미국", ["미국", "뉴욕", "하와이", "괌", "사이판"]],
+    ["캠핑", ["캠핑", "글램핑", "차박"]], ["등산", ["등산", "트레킹", "둘레길", "산행", "오름"]], ["숙소", ["호텔", "숙소", "숙박", "고택", "펜션", "리조트", "풀빌라", "스테이"]]],
+  "음식": [["카페", ["카페", "커피", "디저트", "베이커리", "빵"]], ["레시피", ["레시피", "요리", "만들기", "밀키트", "반찬"]], ["맛집", ["맛집", "식당", "오마카세", "고기", "국수"]]],
+  "IT": [["테스트·QA", [RX("qa"), "테스트", "품질", "playwright", "플레이라이트", "selenium", "testing", "testathon"]], ["개발", ["개발", "코딩", "프로그래밍", "github", "javascript", "python", "서버"]], ["데이터", ["데이터", RX("sql"), "엑셀"]]],
+  "AI": [["프롬프트", ["프롬프트", "prompt"]], ["AI 도구", ["chatgpt", "claude", "gemini", "툴", "도구", "자동화"]]],
+  "건강·운동": [["운동", ["운동", "헬스", "필라테스", "요가", "러닝", "홈트", "스트레칭"]], ["다이어트", ["다이어트", "식단"]], ["병원·건강", ["병원", "클리닉", "한의원", "정신건강", "약", "영양제", "수면", "통증", "호르몬"]]],
+  "재테크": [["주식", ["주식", RX("etf"), "배당"]], ["부동산", ["부동산", "청약", "아파트"]], ["절약·세금", ["적금", "예금", "절세", "연말정산"]]],
+  "패션·뷰티": [["옷", ["패션", "코디", "원피스", "니트", "코트", "자켓", "블라우스", "레깅스", "가방", "신발"]], ["뷰티", ["화장품", "스킨케어", "메이크업", "향수", "헤어", "미용실", "네일"]]],
+};
+const RULE_V = 2;
+function ruleHay(x){ return [x.title, x.title, x.desc, (x.tags || []).join(" "), (x.text || "").slice(0, 2000)].filter(Boolean).join("\n").toLowerCase().replace(/(네이버|다음|naver|daum)\s*카페/g, " "); }
+const hit = (w, hay) => w instanceof RegExp ? w.test(hay) : hay.includes(w);
 function ruleTopic(x){
-  const hay = [x.title, x.title, x.desc, (x.text || "").slice(0, 2000)].filter(Boolean).join("\n").toLowerCase().replace(/(네이버|다음|naver|daum)\s*카페/g, " ");
+  const hay = ruleHay(x);
   let href = ""; try { const u = new URL(x.url); href = (u.hostname.replace(/^www\.|^m\./, "") + u.pathname).toLowerCase(); } catch {}
   let best = "", bestScore = 0;
   for (const [topic, words, sites] of TOPIC_RULES){
     let sc = 0;
-    for (const w of words) sc += w instanceof RegExp ? (w.test(hay) ? 1 : 0) : (hay.includes(w) ? 1 : 0);
-    if (href && sites.some(d => href.startsWith(d) || href.includes("." + d) || (d.endsWith(".") && href.startsWith(d)))) sc += 3;
+    for (const w of words) sc += hit(w, hay) ? 1 : 0;
+    if (href && sites.some(d => href.startsWith(d) || href.includes("." + d) || href.includes("/" + d) || (d.endsWith(".") && href.startsWith(d)))) sc += 3;
+    if (topic === "쇼핑" && /\/(product|goods|category)\b/.test(href)) sc += 2;
     if (sc > bestScore){ best = topic; bestScore = sc; }
   }
   if (!best && x.type === "place") best = "장소";
+  return best;
+}
+function ruleSub(topic, x){
+  const subs = SUB_RULES[topic]; if (!subs) return "";
+  const hay = ruleHay(x); let best = "", bs = 0;
+  for (const [sub, words] of subs){ const sc = words.filter(w => hit(w, hay)).length; if (sc > bs){ best = sub; bs = sc; } }
   return best;
 }
 const knownKeys = () => new Set(items.filter(i => i.url).map(i => urlKey(i.url)));
 async function addItems(list, onStep){
   const now = Date.now(); let done = 0;
   const docs = list.map((x, i) => ({ kind: "note", type: x.type, url: x.url || "", platform: x.platform || "", title: x.title || "", text: x.text || "",
-    tags: x.tags || [], topic: x.topic || ruleTopic(x), topicBy: x.topic ? (x.topicBy || "user") : "rule", summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
+    tags: x.tags || [], topic: x.topic || ruleTopic(x), sub: x.topic ? (x.sub || "") : ruleSub(ruleTopic(x), x), topicBy: x.topic ? (x.topicBy || "user") : "rule", ruleV: RULE_V, summary: x.summary || [], savedFrom: x.savedFrom || "직접 입력",
     image: x.image || "", desc: x.desc || "", pv: x.pv || 0,
     savedAt: x.savedAt || "", createdAt: new Date(now - i).toISOString() }));
   if (store === "db"){
@@ -931,7 +963,7 @@ async function classify(list){
         '\n\nJSON으로만 답하세요: {"items":[{"i":0,"topic":"","tags":[],"title":"","summary":""}]}', { modelTier: "quick" });
       for (const o of (r && Array.isArray(r.items) ? r.items : [])){
         const x = chunk[o.i]; if (!x || !x.id) continue;
-        const patch = { topic: String(o.topic || "미확인").slice(0, 20), topicBy: "ai" };
+        const patch = { topic: String(o.topic || "미확인").slice(0, 20), sub: "", topicBy: "ai" };
         const tags = [...new Set((x.tags || []).concat(Array.isArray(o.tags) ? o.tags.map(String) : []))].slice(0, 8); patch.tags = tags;
         if (o.title && (!x.title || x.title === defaultTitle(x.url || ""))) patch.title = String(o.title).slice(0, 120);
         if (o.summary && x.text) patch.summary = [String(o.summary)];
@@ -946,15 +978,21 @@ async function classify(list){
 $("#ai-classify").addEventListener("click", () => { const todo = items.filter(i => !i.topic || i.topicBy === "rule"); if (!todo.length) return toast("모든 항목에 주제가 있습니다."); classify(todo.slice(0, 200)); });
 
 /* ================= 서재 ================= */
-const F = { type: null, platform: null, savedFrom: null, topic: null, tag: null };
-const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", tag: "태그" };
+const F = { topic: null, sub: null, type: null, platform: null, savedFrom: null, tag: null };
+const FLABEL = { type: "종류", platform: "출처", savedFrom: "저장했던 곳", topic: "주제", sub: "세부", tag: "태그" };
+const NO_TOPIC = "주제 없음", ETC = "기타";
+let smallTopics = new Set(), moreOpen = false;
 let q = "", sort = "new"; const expanded = new Set(); let confirming = null, editing = null;
 $("#q").addEventListener("input", e => { q = e.target.value.trim(); render(); });
 $("#sort").addEventListener("change", e => { sort = e.target.value; render(); });
-const valOf = (i, k) => k === "tag" ? i.tags : [k === "topic" ? (i.topic || "분류 전") : i[k]];
+const valOf = (i, k) => k === "tag" ? i.tags : k === "topic" ? [i.topic || NO_TOPIC] : k === "sub" ? [i.sub || ""] : [i[k]];
 function matches(i, skip){
-  for (const k of Object.keys(F)){ if (k === skip || !F[k]) continue; if (!valOf(i, k).includes(F[k])) return false; }
-  if (q){ const ql = q.toLowerCase(); if (![i.title, i.text, i.desc, i.url, i.platform, i.topic, i.savedFrom, i.tags.join(" ")].join(" ").toLowerCase().includes(ql)) return false; }
+  for (const k of Object.keys(F)){
+    if (k === skip || (k === "sub" && skip === "topic") || !F[k]) continue;
+    if (k === "topic" && F.topic === ETC){ if (!smallTopics.has(i.topic || NO_TOPIC)) return false; continue; }
+    if (!valOf(i, k).includes(F[k])) return false;
+  }
+  if (q){ const ql = q.toLowerCase(); if (![i.title, i.text, i.desc, i.url, i.platform, i.topic, i.sub, i.savedFrom, i.tags.join(" ")].join(" ").toLowerCase().includes(ql)) return false; }
   return true;
 }
 function countsFor(k){
@@ -966,16 +1004,37 @@ function countsFor(k){
 }
 function renderFilters(){
   const box = $("#filters"); box.textContent = "";
-  for (const k of ["type", "platform", "topic", "savedFrom", "tag"]){
-    const arr = countsFor(k); if (!arr.length && !F[k]) continue;
-    const ul = el("ul");
-    arr.forEach(([v, n]) => ul.append(el("li", {}, el("button", { class: "fbtn", type: "button", "aria-pressed": String(F[k] === v), onclick: () => { F[k] = F[k] === v ? null : v; render(); } },
-      k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: k === "tag" ? "#" + v : v }), el("span", { class: "stats", text: String(n) })))));
-    box.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: FLABEL[k] }), ul));
+  const fbtn = (k, v, n, label, cls) => el("li", {}, el("button", { class: "fbtn" + (cls ? " " + cls : ""), type: "button", "aria-pressed": String(F[k] === v), onclick: () => { F[k] = F[k] === v ? null : v; if (k === "topic") F.sub = null; render(); } },
+    k === "type" ? el("span", { class: "nm kind k-" + v, text: TYPE_LABEL[v] }) : el("span", { class: "nm", text: label || (k === "tag" ? "#" + v : v) }), el("span", { class: "stats", text: n.toLocaleString() })));
+  // 주제: 큰 주제만 보이고, 고르면 세부 주제가 그 아래에 열린다. 3개 미만인 주제는 '기타'로 묶는다.
+  const all = new Map(); items.forEach(i => { const t = i.topic || NO_TOPIC; all.set(t, (all.get(t) || 0) + 1); });
+  smallTopics = new Set([...all.entries()].filter(([t, n]) => n < 3 && t !== NO_TOPIC).map(([t]) => t));
+  if (smallTopics.size < 2) smallTopics = new Set();
+  const m = new Map(); items.filter(i => matches(i, "topic")).forEach(i => { let t = i.topic || NO_TOPIC; if (smallTopics.has(t)) t = ETC; m.set(t, (m.get(t) || 0) + 1); });
+  const order = [...m.entries()].sort((a, b) => (a[0] === NO_TOPIC) - (b[0] === NO_TOPIC) || (a[0] === ETC) - (b[0] === ETC) || b[1] - a[1]);
+  const ul = el("ul");
+  order.forEach(([t, n]) => {
+    ul.append(fbtn("topic", t, n, t, t === NO_TOPIC ? "muted" : ""));
+    if (F.topic === t && t !== ETC && t !== NO_TOPIC){
+      const sm = new Map(); items.filter(i => matches(i, "sub") && i.topic === t).forEach(i => { const s = i.sub || ""; if (s) sm.set(s, (sm.get(s) || 0) + 1); });
+      [...sm.entries()].sort((a, b) => b[1] - a[1]).forEach(([s, n2]) => ul.append(fbtn("sub", s, n2, s, "sub")));
+    }
+  });
+  if (order.length) box.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: "주제" }), ul));
+  // 나머지 기준은 접어 둔다
+  const det = el("details", { class: "more-filters" }); det.open = moreOpen || ["type", "platform", "savedFrom", "tag"].some(k => F[k]);
+  det.addEventListener("toggle", () => { moreOpen = det.open; });
+  det.append(el("summary", { text: "다른 기준" }));
+  for (const k of ["type", "platform", "savedFrom", "tag"]){
+    let arr = countsFor(k); if (!arr.length && !F[k]) continue;
+    if (k === "platform") arr = arr.slice(0, 12);
+    const u2 = el("ul"); arr.forEach(([v, n]) => u2.append(fbtn(k, v, n)));
+    det.append(el("div", { class: "fgroup" }, el("h3", { class: "label", text: FLABEL[k] }), u2));
   }
+  box.append(det);
   const af = $("#active-filters"); af.textContent = ""; const on = Object.keys(F).filter(k => F[k]);
   af.hidden = !on.length;
-  if (on.length){ af.append("걸러 보는 중:"); on.forEach(k => af.append(el("button", { type: "button", onclick: () => { F[k] = null; render(); }, text: `${FLABEL[k]} · ${k === "type" ? TYPE_LABEL[F[k]] : F[k]} ✕` }))); af.append(el("button", { type: "button", text: "모두 해제", onclick: () => { Object.keys(F).forEach(k => F[k] = null); render(); } })); }
+  if (on.length){ af.append("걸러 보는 중:"); on.forEach(k => af.append(el("button", { type: "button", onclick: () => { F[k] = null; if (k === "topic") F.sub = null; render(); }, text: `${FLABEL[k]} · ${k === "type" ? TYPE_LABEL[F[k]] : F[k]} ✕` }))); af.append(el("button", { type: "button", text: "모두 해제", onclick: () => { Object.keys(F).forEach(k => F[k] = null); render(); } })); }
 }
 function fmtDate(iso){ const d = new Date(iso); if (isNaN(d)) return ""; const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`; }
 function hl(node, text, needle){
@@ -1007,11 +1066,13 @@ function srcField(n){
 // 카드 위에서 바로 주제를 고친다. 직접 고친 주제는 자동 규칙이 다시 바꾸지 않는다.
 function topicField(n){
   const inp = el("input", { type: "text", list: "topic-all", "aria-label": "주제", placeholder: "주제 없음", title: "주제를 적거나 골라서 바꿀 수 있어요", autocomplete: "off" });
-  inp.value = n.topic || "";
+  const shown = n.topic ? n.topic + (n.sub ? " · " + n.sub : "") : "";
+  inp.value = shown;
   const commit = async () => {
-    const v = inp.value.trim().slice(0, 20);
-    if (v === (n.topic || "")) return;
-    try { await updateItem(n.id, { topic: v, topicBy: "user" }); toast(v ? `주제를 '${v}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
+    const v = inp.value.trim().slice(0, 40);
+    if (v === shown) return;
+    const [t = "", sb = ""] = v.split(/\s*[·>\/]\s*/);
+    try { await updateItem(n.id, { topic: t.slice(0, 20), sub: sb.slice(0, 20), topicBy: "user" }); toast(v ? `주제를 '${v}'(으)로 바꿨습니다.` : "주제를 비웠습니다."); } catch { toast("주제를 바꾸지 못했습니다."); }
   };
   inp.addEventListener("change", commit);
   inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); inp.blur(); } if (e.key === "Escape"){ inp.value = n.topic || ""; inp.blur(); } });
@@ -1097,7 +1158,7 @@ function asMd(n){
   return head + `\n  ${meta}` + (n.text ? "\n  > " + n.text.replace(/\n/g, "\n  > ") : "");
 }
 function exportMd(vs){
-  const groups = new Map(); vs.forEach(n => { const k = n.topic || "분류 전"; groups.has(k) || groups.set(k, []); groups.get(k).push(n); });
+  const groups = new Map(); vs.forEach(n => { const k = n.topic || "주제 없음"; groups.has(k) || groups.set(k, []); groups.get(k).push(n); });
   return "# 내모음\n\n" + [...groups.entries()].map(([k, arr]) => `## ${k} (${arr.length})\n\n` + arr.map(asMd).join("\n")).join("\n\n") + "\n";
 }
 $("#copy-all").addEventListener("click", () => { const vs = visible(); if (!vs.length) return toast("복사할 항목이 없습니다."); copyText(exportMd(vs), `${vs.length}개를 마크다운으로 복사했습니다.`); });
@@ -1161,7 +1222,7 @@ async function fillPreviews(ids){
         if (p.image || p.desc || patch.title) got++;
       }
       const cur = items.find(i => i.id === n.id);
-      if (cur && (!cur.topic || cur.topicBy === "rule")){ const t = ruleTopic({ ...cur, ...patch }); if (t && t !== cur.topic){ patch.topic = t; patch.topicBy = "rule"; } }
+      if (cur && (!cur.topic || cur.topicBy === "rule")){ const nx = { ...cur, ...patch }, t = ruleTopic(nx); if (t){ const sb = ruleSub(t, nx); if (t !== cur.topic || sb !== (cur.sub || "")){ patch.topic = t; patch.sub = sb; patch.topicBy = "rule"; patch.ruleV = RULE_V; } } }
       if (cur){
         if (store === "db") await col.doc(n.id).update(patch).catch(() => {});
         else { Object.assign(cur, patch); }
@@ -1313,7 +1374,8 @@ function takeSent(){
 render();
 function ruleTopicsForOld(){
   if (store !== "local") return;
-  let changed = 0, n = 0; items.forEach(i => { if (!i.topic && !i.topicBy){ const t = ruleTopic(i); i.topicBy = "rule"; changed++; if (t){ i.topic = t; n++; } } });
+  // 주제가 없거나 예전 규칙으로 붙은 항목은 지금 규칙으로 다시 붙인다 (직접 고친 주제는 그대로)
+  let changed = 0, n = 0; items.forEach(i => { if ((!i.topic && !i.topicBy) || (i.topicBy === "rule" && i.ruleV !== RULE_V)){ const t = ruleTopic(i); i.topic = t; i.sub = ruleSub(t, i); i.topicBy = "rule"; i.ruleV = RULE_V; changed++; n++; } });
   if (changed) local.write(items); if (n) render();
 }
 takeSent();
