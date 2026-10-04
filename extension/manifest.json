@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "내모음 가져오기",
+  "version": "1.0.0",
+  "description": "로그인된 내 크롬에서 즐겨찾기와 저장 목록을 읽어 내모음에 넣습니다. 읽기만 하고 아무것도 바꾸지 않습니다.",
+  "permissions": ["bookmarks", "scripting", "tabs", "storage"],
+  "host_permissions": [
+    "https://naemoeum.vercel.app/*",
+    "http://localhost/*",
+    "https://keep.naver.com/*",
+    "https://map.naver.com/*",
+    "https://*.map.naver.com/*",
+    "https://*.place.naver.com/*",
+    "https://www.google.com/maps/*",
+    "https://www.instagram.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://naemoeum.vercel.app/*", "http://localhost/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "내모음 가져오기" }
+}

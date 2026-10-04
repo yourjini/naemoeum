@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>내모음 가져오기</title>
+<style>
+body{font:14px/1.5 "Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;margin:0;padding:14px;width:300px;color:#1b2233;background:#f3f5f8}
+h1{font-size:16px;margin:0 0 8px}
+label{display:flex;align-items:center;gap:6px;padding:4px 0}
+.when{margin-left:auto;font-size:11px;color:#5d6779}
+input[type=text]{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #d9dee7;border-radius:6px;margin:4px 0 10px}
+button{width:100%;padding:9px;border:0;border-radius:8px;background:#2c4bd6;color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+button:disabled{opacity:.5}
+#out{font-size:12.5px;color:#5d6779;margin-top:10px;white-space:pre-line}
+p.small{font-size:12px;color:#5d6779;margin:8px 0 0}
+</style></head>
+<body>
+<h1>내모음 가져오기</h1>
+<div id="list"></div>
+<input type="text" id="ig" placeholder="인스타그램 아이디 (인스타 가져올 때만)">
+<button id="go">지금 가져오기</button>
+<div id="out"></div>
+<p class="small">로그인된 크롬에서 읽기만 해요. 아무것도 고치거나 지우지 않아요.</p>
+<script src="popup.js"></script>
+</body></html>
