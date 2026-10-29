@@ -251,6 +251,36 @@ button.t-tog[aria-expanded="true"] svg{transform:rotate(90deg)}
 .pager .btn{min-width:36px;justify-content:center;padding:5px 9px}
 .pager .btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .pager .gap{color:var(--muted);padding:0 2px}
+.viewsw{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+.viewsw button{border:0;background:var(--sheet);color:var(--muted);padding:7px 9px;cursor:pointer;display:inline-flex;align-items:center}
+.viewsw button + button{border-left:1px solid var(--line)}
+.viewsw button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+#list.rows{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line)}
+#list.rows .card{display:grid;grid-template-columns:72px minmax(0,1fr) auto auto;align-items:center;column-gap:12px;row-gap:4px;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 10px}
+#list.rows .card.selectable{grid-template-columns:auto 72px minmax(0,1fr) auto auto}
+#list.rows .card > *{grid-row:1}
+#list.rows .card .head{grid-column:1}
+#list.rows .card .pick{margin:0}
+#list.rows .card .tl{display:block;width:72px}
+#list.rows .card .tl.ph{aspect-ratio:1.91/1;border-radius:4px;background:var(--soft)}
+#list.rows .card .thumb{border-radius:4px}
+#list.rows .card .title{-webkit-line-clamp:1;font-size:14.5px}
+#list.rows .card .chips{flex-wrap:nowrap;min-width:0;max-width:14em}
+#list.rows .card .foot{border-top:0;margin-top:0;padding-top:0}
+#list.rows .card.picked{box-shadow:inset 3px 0 0 var(--accent)}
+#list.rows .card.editing{display:flex;flex-direction:column;align-items:stretch}
+@media (max-width:520px){
+  #list.rows .card{grid-template-columns:56px auto minmax(0,1fr);padding:8px 4px;column-gap:10px}
+  #list.rows .card.selectable{grid-template-columns:auto 56px auto minmax(0,1fr)}
+  #list.rows .card .tl{width:56px;grid-row:1/3;grid-column:-4/-3}
+  #list.rows .card .head{grid-row:1/3}
+  #list.rows .card .title{grid-column:-3/-1;-webkit-line-clamp:2}
+  #list.rows .card .chips{grid-row:2;grid-column:-3/-2;max-width:9em}
+  #list.rows .card .foot{grid-row:2;grid-column:-2/-1;min-width:0}
+  #list.rows .card .when{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  #list.rows .card .actions .icon-btn{padding:4px 2px}
+  .viewsw button{padding:6px 7px}
+}
 #list > .empty{border:1.5px dashed var(--line);border-radius:8px;padding:22px 16px;color:var(--muted);font-size:14px;grid-column:1/-1}
 .empty b{color:var(--ink)}
 mark{background:var(--mark);color:var(--mark-ink);padding:0 1px;border-radius:2px}
@@ -445,6 +475,10 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
             <option value="old">오래된 순</option>
             <option value="title">제목 순</option>
           </select>
+          <div class="viewsw" role="group" aria-label="보기">
+            <button type="button" data-view="card" aria-label="카드로 보기" title="카드"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1"/></svg></button>
+            <button type="button" data-view="list" aria-label="리스트로 보기" title="리스트"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+          </div>
         </div>
         <div class="active-filters" id="active-filters" hidden></div>
         </div>
@@ -691,6 +725,8 @@ async function useCloud(u){
   try { items = (await sbLoadAll()).map(normalize); sbLoadedAt = Date.now(); }
   catch { sbUser = null; useLocal("온라인 저장소에 연결하지 못해 이 브라우저에 저장합니다."); return; }
   note.textContent = "";
+  const cloudView = u.user_metadata && u.user_metadata.listView;
+  if (cloudView){ setView(cloudView); try { localStorage.setItem(VIEW_KEY, view); } catch {} }
   const cloudPrefs = u.user_metadata && u.user_metadata.topicPrefs;
   if (mergeTopicPrefs(cloudPrefs || {}) && (topicPrefs.drop.length || Object.keys(topicPrefs.rename).length)) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {});
   const who = $("#acc-who"); who.textContent = ""; who.hidden = false;
@@ -1329,6 +1365,14 @@ function topicEditRow(t, sb){
   setTimeout(() => inp.focus(), 0);
   return el("li", { class: "editing" }, form);
 }
+// 카드/리스트 보기: 이 브라우저에 기억하고, 로그인했으면 계정에도
+const VIEW_KEY = "naemoeum.view.v1";
+let view = (() => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "card"; } catch { return "card"; } })();
+function setView(v, save){
+  view = v === "list" ? "list" : "card";
+  document.querySelectorAll(".viewsw button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+  if (save){ try { localStorage.setItem(VIEW_KEY, view); } catch {} if (store === "sb" && sb) sb.auth.updateUser({ data: { listView: view } }).catch(() => {}); }
+}
 let q = "", sort = "new"; const expanded = new Set(); let editing = null;
 // 여러 개 지우기: '삭제'를 누르면 카드마다 체크칸이 생긴다
 let selecting = false, delArmed = false, onPage = []; const picked = new Set();
@@ -1359,6 +1403,8 @@ $("#sel-del").addEventListener("click", async () => {
 });
 $("#q").addEventListener("input", e => { q = e.target.value.trim(); render(); });
 $("#sort").addEventListener("change", e => { sort = e.target.value; render(); });
+document.querySelectorAll(".viewsw button").forEach(b => b.addEventListener("click", () => { setView(b.dataset.view, true); render(); }));
+setView(view);
 const valOf = (i, k) => k === "tag" ? i.tags : k === "topic" ? [i.topic || NO_TOPIC] : k === "sub" ? [i.sub || ""] : [i[k]];
 function matches(i, skip){
   for (const k of Object.keys(F)){
@@ -1573,8 +1619,9 @@ function card(n){
   c.append(title);
   if (editing === n.id){ c.append(editForm(n)); return c; }
   const thumb = safeHref(n.image);
-  if (thumb){ const img = el("img", { class: "thumb", src: thumb, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); img.addEventListener("error", () => img.remove()); c.insertBefore(href ? el("a", { href, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" }, img) : img, title); }
-  const memo = !href && n.text && (n.type === "text" || n.type === "image");
+  if (thumb){ const img = el("img", { class: "thumb", src: thumb, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); img.addEventListener("error", () => img.remove()); c.insertBefore(href ? el("a", { class: "tl", href, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" }, img) : el("span", { class: "tl" }, img), title); }
+  else if (view === "list") c.insertBefore(el("span", { class: "tl ph" }), title);
+  const memo = view !== "list" && !href && n.text && (n.type === "text" || n.type === "image");
   if (memo){ c.append(hl(el("p", { class: "body" + (expanded.has(n.id) ? "" : " clamp") }), n.text, q)); }
   const chips = el("div", { class: "chips" });
   chips.append(topicField(n));
@@ -1619,7 +1666,7 @@ function editForm(n){
 function render(){
   renderFilters();
   if (selecting) updateSelTools();
-  const list = $("#list"); list.textContent = ""; onPage = [];
+  const list = $("#list"); list.textContent = ""; onPage = []; list.classList.toggle("rows", view === "list");
   $("#count").textContent = items.length ? items.length.toLocaleString() + "개" : "";
   const untopiced = items.filter(i => !i.topic || i.topicBy === "rule").length;
   $("#ai-classify").textContent = untopiced ? `AI로 분류 (${untopiced})` : "AI로 분류";
