@@ -313,7 +313,9 @@ a.bm{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--f-body);
     <div class="acc-top">
       <form class="account" id="acc-form" hidden>
         <input type="email" id="acc-email" placeholder="이메일로 로그인" autocomplete="email" required aria-label="로그인할 이메일">
+        <input type="text" id="acc-code" placeholder="메일의 숫자" inputmode="numeric" autocomplete="one-time-code" maxlength="10" aria-label="메일로 받은 숫자" hidden>
         <button class="btn" id="acc-login" type="submit">로그인</button>
+        <button class="linkbtn" id="acc-back" type="button" hidden>다시</button>
       </form>
       <span class="note" id="acc-who" hidden></span>
     </div>
@@ -500,7 +502,7 @@ https://youtu.be/dQw4w9WgXcQ"></textarea>
 const $ = (s, el = document) => el.querySelector(s);
 const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(props)){ if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v); } for (const c of kids.flat()) if (c != null && c !== false) n.append(c); return n; };
 const toastEl = $("#toast"); let toastT;
-function toast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("show"), 2400); }
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("show"), Math.max(2400, msg.length * 90)); }
 
 /* ================= 출처 알아보기 ================= */
 const TYPE_LABEL = { video: "영상", place: "장소", link: "링크", text: "글", image: "이미지" };
@@ -699,16 +701,44 @@ async function initCloud(){
 }
 function showLogin(){
   useLocal("이 브라우저에만 저장됩니다.");
-  $("#acc-form").hidden = false; $("#acc-who").hidden = true; $("#move-box").hidden = true;
+  $("#acc-form").hidden = false; $("#acc-who").hidden = true; $("#move-box").hidden = true; accStep(false, true);
 }
+// 로그인: 메일의 링크를 누르거나, 메일에 적힌 숫자를 여기 넣는다
+// (휴대폰 메일 앱이 링크를 다른 브라우저/앱 안에서 열어도 숫자로는 이 화면에서 로그인된다)
+let accEmail = "";
+function accStep(code, quiet){
+  $("#acc-email").hidden = code; $("#acc-email").required = !code;
+  $("#acc-code").hidden = !code; $("#acc-code").required = code; $("#acc-code").value = "";
+  $("#acc-back").hidden = !code; $("#acc-login").textContent = code ? "확인" : "로그인";
+  if (!quiet) (code ? $("#acc-code") : $("#acc-email")).focus();
+}
+$("#acc-back").addEventListener("click", () => accStep(false));
 $("#acc-form").addEventListener("submit", async e => {
-  e.preventDefault(); const email = $("#acc-email").value.trim(); if (!email || !sb) return;
-  $("#acc-login").disabled = true;
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-  $("#acc-login").disabled = false;
-  if (error) toast(/rate|seconds/i.test(error.message) ? "잠시 뒤에 다시 눌러 주세요." : "로그인 메일을 보내지 못했습니다.");
-  else toast("메일의 로그인 링크를 이 브라우저에서 열어 주세요.");
+  e.preventDefault(); if (!sb) return;
+  const btn = $("#acc-login"); btn.disabled = true;
+  try {
+    if (!$("#acc-code").hidden){
+      const token = $("#acc-code").value.replace(/\D/g, ""); if (!token) return;
+      const { error } = await sb.auth.verifyOtp({ email: accEmail, token, type: "email" });
+      if (error) toast(/expired|invalid/i.test(error.message) ? "숫자가 맞지 않거나 시간이 지났습니다. '다시'를 눌러 새 메일을 받아 주세요." : "로그인하지 못했습니다.");
+      else accStep(false);
+      return;
+    }
+    const email = $("#acc-email").value.trim(); if (!email) return;
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    if (error){ toast(/rate|seconds|limit/i.test(error.message) ? "메일을 너무 자주 보냈습니다. 몇 분 뒤에 다시 눌러 주세요." : "로그인 메일을 보내지 못했습니다."); return; }
+    accEmail = email; accStep(true);
+    toast("메일의 링크를 누르거나, 메일에 적힌 숫자를 넣어 주세요.");
+  } finally { btn.disabled = false; }
 });
+// 메일 링크가 만료됐거나 이미 쓰인 경우 주소 끝에 오류가 붙어 돌아온다: 알려 주고 주소를 깨끗하게
+(() => {
+  const h = new URLSearchParams(location.hash.slice(1)), qs = new URLSearchParams(location.search);
+  const code = h.get("error_code") || qs.get("error_code"), err = h.get("error") || qs.get("error");
+  if (!code && !err) return;
+  history.replaceState(null, "", location.pathname);
+  setTimeout(() => toast(/expired/i.test(code || "") ? "로그인 링크가 만료됐거나 이미 쓰였습니다. 다시 로그인 메일을 받아 주세요." : "로그인하지 못했습니다. 다시 로그인 메일을 받아 주세요."), 300);
+})();
 async function sbLoadAll(){
   const all = [];
   for (let from = 0; ; from += 1000){
