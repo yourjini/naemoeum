@@ -726,7 +726,7 @@ async function useCloud(u){
   catch { sbUser = null; useLocal("온라인 저장소에 연결하지 못해 이 브라우저에 저장합니다."); return; }
   note.textContent = "";
   const cloudView = u.user_metadata && u.user_metadata.listView;
-  if (cloudView){ setView(cloudView); try { localStorage.setItem(VIEW_KEY, view); } catch {} }
+  if (cloudView){ setLayout(cloudView); try { localStorage.setItem(VIEW_KEY, view); } catch {} }
   const cloudPrefs = u.user_metadata && u.user_metadata.topicPrefs;
   if (mergeTopicPrefs(cloudPrefs || {}) && (topicPrefs.drop.length || Object.keys(topicPrefs.rename).length)) sb.auth.updateUser({ data: { topicPrefs } }).catch(() => {});
   const who = $("#acc-who"); who.textContent = ""; who.hidden = false;
@@ -1368,7 +1368,7 @@ function topicEditRow(t, sb){
 // 카드/리스트 보기: 이 브라우저에 기억하고, 로그인했으면 계정에도
 const VIEW_KEY = "naemoeum.view.v1";
 let view = (() => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "card"; } catch { return "card"; } })();
-function setView(v, save){
+function setLayout(v, save){
   view = v === "list" ? "list" : "card";
   document.querySelectorAll(".viewsw button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   if (save){ try { localStorage.setItem(VIEW_KEY, view); } catch {} if (store === "sb" && sb) sb.auth.updateUser({ data: { listView: view } }).catch(() => {}); }
@@ -1403,8 +1403,8 @@ $("#sel-del").addEventListener("click", async () => {
 });
 $("#q").addEventListener("input", e => { q = e.target.value.trim(); render(); });
 $("#sort").addEventListener("change", e => { sort = e.target.value; render(); });
-document.querySelectorAll(".viewsw button").forEach(b => b.addEventListener("click", () => { setView(b.dataset.view, true); render(); }));
-setView(view);
+document.querySelectorAll(".viewsw button").forEach(b => b.addEventListener("click", () => { setLayout(b.dataset.view, true); render(); }));
+setLayout(view);
 const valOf = (i, k) => k === "tag" ? i.tags : k === "topic" ? [i.topic || NO_TOPIC] : k === "sub" ? [i.sub || ""] : [i[k]];
 function matches(i, skip){
   for (const k of Object.keys(F)){
